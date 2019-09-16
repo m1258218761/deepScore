@@ -10,7 +10,7 @@ from  Resnet_model import ResNet18
 from tqdm import tqdm
 
 NCE = '30'
-run_model = 'Test'         ## run model:Train or Test
+run_model = 'Train'         ## run model:Train or Test
 pretrained = False         ##pretrained:True or False
 
 ##Model parameters
