@@ -14,8 +14,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 This is for ProteomeTools2 dataset
 '''
 class ProteomeTools(object):
-    def __init__(self, workpath=''):
-        self.workpath = workpath
+    def __init__(self, workpath='',nce=''):
+        self.workpath = workpath+'/NCE'+nce+'/'
+        self.nce = nce
 
     #   Compare string a and string b difference
     def find_diff(self, a, b):
@@ -37,8 +38,7 @@ class ProteomeTools(object):
         _index = [774, 1599, 1600, 4176]
         count = 0
         flag = 1
-        with open('E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/selected_NCE35.mgf', 'r') as r, open(
-                'E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/_selected_NCE35.mgf', 'a+') as w:
+        with open(self.workpath+'selected_NCE'+self.nce+'.mgf', 'r') as r, open(self.workpath+'_selected_NCE'+self.nce+'.mgf', 'a+') as w:
             while True:
                 line = r.readline()
                 if not line.strip():
@@ -54,10 +54,7 @@ class ProteomeTools(object):
 
     # Delete the unconventional amino acids from Comet identification results:U
     def find_unkonwn_aa(self):
-        with open('E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE25/selected_NCE25_forcomet.txt',
-                  'r') as r, open(
-                'E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE25/_selected_NCE25_forcomet.txt',
-                'a+') as w:
+        with open(self.workpath+'selected_NCE'+self.nce+'_forcomet.txt','r') as r, open(self.workpath+'_selected_NCE'+self.nce+'_forcomet.txt','a+') as w:
             r.__next__()
             r.__next__()
             while True:
@@ -184,15 +181,10 @@ class ProteomeTools(object):
         count = 0
         unmissed_total_PSMs = 0
         unmissed_count = 0
-        with open('E:/data/1/get_ions/ProteomeTools/selected_mgf/NCE30/selected_NCE30_missed_peptide.txt',
-                  'a+') as mtw, open(
-                'E:/data/1/get_ions/ProteomeTools/selected_mgf/NCE30/selected_NCE30_missed_PSMs.mgf', 'a+') as mgw, open(
-                'E:/data/1/get_ions/ProteomeTools/selected_mgf/NCE30/selected_NCE30_unmissed_PSMs.mgf',
-                'a+') as ugw, open(
-                'E:/data/1/get_ions/ProteomeTools/selected_mgf/NCE30/selected_NCE30_unmissed_peptide.txt',
-                'a+') as utw:
-            comet_results = self.read_comet_results(have_decoy=False,filename='E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/selected_NCE35_forcomet.txt')
-            correcte_results, correcte_spectrum = self.read_correct_PSMs(filename='E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/selected_NCE35.mgf')
+        with open(self.workpath+'selected_NCE'+self.nce+'_missed_peptide.txt','a+') as mtw, open(self.workpath+'selected_NCE'+self.nce+'_missed_PSMs.mgf', 'a+') as mgw, open(
+                self.workpath+'selected_NCE'+self.nce+'_unmissed_PSMs.mgf','a+') as ugw, open(self.workpath+'selected_NCE'+self.nce+'_unmissed_peptide.txt','a+') as utw:
+            comet_results = self.read_comet_results(have_decoy=False,filename=self.workpath+'selected_NCE'+self.nce+'_forcomet.txt')
+            correcte_results, correcte_spectrum = self.read_correct_PSMs(filename=self.workpath+'selected_NCE'+self.nce+'.mgf')
             for i in range(len(correcte_results)):
                 correcte_seq = correcte_results[i]
                 if comet_results.get(str(i + 1)) == None:
@@ -234,16 +226,15 @@ class ProteomeTools(object):
 
     #   Annotate regular ions(b1+,y1+,b2+,y2+) and generate the files can be scored by P-score
     def get_byions(self):
-        m = MATCH('E:/data/1/get_ions/ProteomeTools/selected_mgf/NCE30', 'selected_NCE30_missed_PSMs.mgf')
+        m = MATCH(self.workpath, 'selected_NCE'+self.nce+'_missed_PSMs.mgf')
         m.write_files()
-        um = MATCH('E:/data/1/get_ions/ProteomeTools/selected_mgf/NCE30', 'selected_NCE30_unmissed_PSMs.mgf')
+        um = MATCH(self.workpath, 'selected_NCE'+self.nce+'_unmissed_PSMs.mgf')
         um.write_files()
 
     #   Obtaining Probability Matrix by Model
     def get_MatrixP(self):
         file_mode = 'missed'
-        NCE = '30'
-        file = 'selected_' +NCE + '_'+file_mode+'_PSMs_byions.txt'
+        file = 'selected_' +self.nce + '_'+file_mode+'_PSMs_byions.txt'
         ##Model parameters
         BATCH_SIZE = 16
         Label_number = 4
@@ -257,7 +248,7 @@ class ProteomeTools(object):
         model.eval()
         if torch.cuda.is_available():
             model.cuda()
-        Data = data(self.workpath+'/ProteomeTools2/selected_mgf2/NCE30/FDR/splited_by_ions', Label_number,run_model='Test',test_file=file)
+        Data = data(self.workpath+'FDR/splited_by_ions', Label_number,run_model='Test',test_file=file)
         Test_data, Test_label, Test_length, _, _, _ = Data.GetData(BATCH_SIZE)
         print('Test data number: ' + str(len(Test_length) * BATCH_SIZE))
         with torch.no_grad():
@@ -285,7 +276,7 @@ class ProteomeTools(object):
             # with open( self.workpath+'/35_random10000/pep_credibility/sorted_by_pccandother/' + file_mode + '_score_pep_P.txt',
             #                         'a+') as fw:
             with open(
-                    self.workpath+'/selected_mgf2/NCE30/FDR/selected_30_score_pep_P_4label_humanmodel.txt',
+                    self.workpath+'FDR/selected_'+self.nce+'_score_pep_P_4label_humanmodel.txt',
                     'a+') as fw:
 
                 while start + 2 <= len(Results):
@@ -321,10 +312,7 @@ class ProteomeTools(object):
         all_correct_pep = []
         pre_index = []
         org_index = []
-        with open('E:/data/1/get_ions/ProteomeTools/selected_mgf/NCE30/selected_NCE30_' + file_mode + '_peptide.txt',
-                  'r') as mr, open(
-                                'E:/data/1/get_ions/ProteomeTools/selected_mgf/NCE30/sorted_by_pccandother/' + file_mode + '_score_pep_P.txt',
-                                'r') as fr:
+        with open(self.workpath+'selected_NCE'+self.nce+'_' + file_mode + '_peptide.txt','r') as mr, open(self.workpath+'sorted_by_pccandother/' + file_mode + '_score_pep_P.txt','r') as fr:
             score = []
             print('start reading score...')
             while True:
@@ -358,52 +346,36 @@ class ProteomeTools(object):
                     _pep_score[one] = score[start]
                     start += 1
                 all_pepscore.append(_pep_score)
-            mae = [[] for ii in range(9)]
             count_len = [0] * 20
             for iii in all_correct_pep:
                 count_len[math.ceil(len(iii.split('_')[0]) / 5) - 1] += 1
             print('peptide length : ' + str(count_len))
-            rank1_2 = []
-            count_il = [0, 0]  ##[total,get]
-            for _i in tqdm(range(len(all_pepscore))):
-                o_index = np.where(np.array(list(all_pepscore[_i].items()))[:, 0] == all_correct_pep[_i])[0][0]
-                org_index.append(o_index)
-                _pep = np.array(sorted(all_pepscore[_i].items(), key=lambda x: float(x[1]), reverse=True))
-                _index = np.where(_pep[:, 0] == all_correct_pep[_i])[0][0]
-                pre_index.append(_index)
-                if _index == 1:
-                    rank1_2.append(_i)
-                if 0 < _index < 10:
-                    mae[_index - 1].append(float(_pep[:, 1][_index]) - float(_pep[:, 1][_index - 1]))
-            print('I and L : ' + str(count_il))
             total_number = len(pre_index)
             print('total : ' + str(total_number))
-            c1 = []
-            c2 = []
+            orginal_diss = []
+            predict_diss = []
             for c in range(10):
                 on = org_index.count(c)
                 orate = on / total_number
                 pn = pre_index.count(c)
                 prate = pn / total_number
-                c1.append(on)
-                c2.append(pn)
+                orginal_diss.append(on)
+                predict_diss.append(pn)
                 print('orginal rank ' + str(c + 1) + ' : ' + str(on) + ' || rate : ' + str(round(orate, 3)))
                 print('predict rank ' + str(c + 1) + ' : ' + str(pn) + ' || rate : ' + str(round(prate, 3)))
-            c1.append(total_number - sum(c1))
-            c2.append(total_number - sum(c2))
-            print('original : ' + str(c1))
-            print('predict : ' + str(c2))
+            orginal_diss.append(total_number - sum(orginal_diss))
+            predict_diss.append(total_number - sum(predict_diss))
+            print('original : ' + str(orginal_diss))
+            print('predict : ' + str(predict_diss))
 
     '''--------------------------------FDR ROC plot---------------------------------'''
     #   generate all PSMs file and Annotate regular ions
     def get_all_PSMs_and_byions(self):
-        comet_results = self.read_comet_results(have_decoy=True,filename='E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/selected_NCE35_forcomet.txt')
-        correcte_pep, correcte_mgf = self.read_correct_PSMs(filename='E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/selected_NCE35.mgf')
+        comet_results = self.read_comet_results(have_decoy=True,filename=self.workpath+'selected_NCE'+self.nce+'_forcomet.txt')
+        correcte_pep, correcte_mgf = self.read_correct_PSMs(filename=self.workpath+'selected_NCE'+self.nce+'.mgf')
         spectrums_number = 0
         index_missed = []
-        with open('E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE30/FDR/selected_30_all_PSMs.mgf',
-                  'a+') as mgfw, open(
-                'E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE30/FDR/selected_30_all_PSMs.txt', 'a+') as txtw:
+        with open(self.workpath+'FDR/selected_'+self.nce+'_all_PSMs.mgf','a+') as mgfw, open(self.workpath+'FDR/selected_'+self.nce+'_all_PSMs.txt', 'a+') as txtw:
             for _index in tqdm(range(len(correcte_pep))):
                 _correcte_seq = correcte_pep[_index]
                 try:
@@ -433,13 +405,12 @@ class ProteomeTools(object):
                     mgfw.write(''.join(_psm))
         print('total spectrums number : ' + str(spectrums_number))
         print(index_missed)
-        m = MATCH('E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE30/FDR', 'selected_30_all_PSMs.mgf')
+        m = MATCH(self.workpath+'FDR', 'selected_'+self.nce+'_all_PSMs.mgf')
         m.write_files()
 
     #   split Annotated files for P-score,Because it takes up too much memory
     def split_byions(self,each_number=100000):
-        with open('E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE30/FDR/selected_30_all_PSMs_byions.txt',
-                  'r') as r:
+        with open(self.workpath+'FDR/selected_'+self.nce+'_all_PSMs_byions.txt','r') as r:
             count = 0
             while True:
                 line = r.readline()
@@ -452,9 +423,7 @@ class ProteomeTools(object):
                     line = r.readline()
                     _line.append(line)
                 _flag = int(count / each_number) + 1
-                with open(
-                                        'E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE30/FDR/splited_by_ions/all_psms_spectrums_byions' + str(
-                                        _flag) + '.txt', 'a+') as w:
+                with open(self.workpath+'FDR/splited_by_ions/all_psms_spectrums_byions' + str(_flag) + '.txt', 'a+') as w:
                     w.write(''.join(_line))
                 _line = []
                 count += 1
@@ -465,7 +434,7 @@ class ProteomeTools(object):
         split_CHARGE = []
         all_charge = []
         Length = []
-        with open('E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/FDR/selected_35_all_PSMs.mgf', 'r') as r:
+        with open(self.workpath+'FDR/selected_'+self.nce+'_all_PSMs.mgf', 'r') as r:
             line = r.readline()
             last_title = ''
             start = 0
@@ -489,7 +458,7 @@ class ProteomeTools(object):
         print(len(Length))
         candidate_peps = []
         correcte_peps = []
-        with open('E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/FDR/selected_35_all_PSMs.txt', 'r') as r:
+        with open(self.workpath+'FDR/selected_'+self.nce+'_all_PSMs.txt', 'r') as r:
             line = r.readline()
             while True:
                 if not line.strip():
@@ -500,9 +469,7 @@ class ProteomeTools(object):
                 correcte_peps.append(_correcte)
                 line = r.readline()
             print(len(candidate_peps))
-        with open(
-                'E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/FDR/selected_35_score_pep_P_4label_humanmodel.txt',
-                'r') as r:
+        with open(self.workpath+'FDR/selected_'+self.nce+'_score_pep_P_4label_humanmodel.txt','r') as r:
             line = r.readline()
             score = []
             Y = []
@@ -554,9 +521,9 @@ class ProteomeTools(object):
         print(threshold_score)
         # write top1 ,format:   pep charge score y_true y_pred _correcte
         with open(
-                'E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/FDR/results/Decoy_score_P_4label_humanmodel_allcharge_changescore3.txt',
+                self.workpath+'FDR/results/Decoy_score_P_4label_humanmodel_allcharge_changescore.txt',
                 'a+') as w, open(
-                'E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/FDR/results/missed_P_4label_humanmodel_allcharge_changescore3.txt',
+                self.workpath+'FDR/results/missed_P_4label_humanmodel_allcharge_changescore.txt',
                 'a+') as mw:
             for i in top_pep_charge_score:
                 _line = '\t'.join(list(map(str, i))) + '\n'
@@ -567,7 +534,7 @@ class ProteomeTools(object):
             print('write top 1 end !')
         if split_by_charge:
         ## get FDR by splite charge
-            with open('E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE30/FDR/results/FDR_results_P_4label_humanmodel.txt', 'a+') as w:
+            with open(self.workpath+'FDR/results/FDR_results_P_4label_humanmodel.txt', 'a+') as w:
                 for _index in tqdm(range(len(threshold_score))):
                     t = threshold_score[_index]
                     target_hits = [0,0,0,0,0]
@@ -587,7 +554,7 @@ class ProteomeTools(object):
         else:
         ## get FDR don't splite charge
             with open(
-                    'E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/FDR/results/FDR_results_P_4label_humanmodel_allcharge_changescore3.txt',
+                    self.workpath+'FDR/results/FDR_results_P_4label_humanmodel_allcharge_changescore.txt',
                     'a+') as w:
                 for _index in tqdm(range(len(threshold_score))):
                     t = threshold_score[_index]
@@ -610,7 +577,7 @@ class ProteomeTools(object):
         score_type = 0      ##0 is xcorr,1 is evalue
         split_CHARGE = []
         all_charge = []
-        with open('E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/selected_NCE35.mgf', 'r') as r:
+        with open(self.workpath+'selected_NCE'+self.nce+'.mgf', 'r') as r:
             line = r.readline()
             last_title = ''
             while True:
@@ -627,9 +594,9 @@ class ProteomeTools(object):
                 line = r.readline()
         print(len(split_CHARGE))
         print(len(all_charge))
-        comet_results = self.read_comet_results(have_decoy=True, have_score=score_type,filename='E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/selected_NCE35_forcomet.txt')
+        comet_results = self.read_comet_results(have_decoy=True, have_score=score_type,filename=self.workpath+'selected_NCE'+self.nce+'_forcomet.txt')
         print(len(comet_results))
-        correcte_results, correcte_spectrum = self.read_correct_PSMs(filename='E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/selected_NCE35.mgf')
+        correcte_results, correcte_spectrum = self.read_correct_PSMs(filename=self.workpath+'selected_NCE'+self.nce+'.mgf')
         print(len(correcte_results))
         threshold_score = []
         for k, v in comet_results.items():
@@ -649,9 +616,9 @@ class ProteomeTools(object):
         print(comet_results)
         # write top1 ,format:   pep xcorr charge correct_pep
         with open(
-                'E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/FDR/results/comet_Decoy_score_xcorr_allcharge.txt',
+                self.workpath+'FDR/results/comet_Decoy_score_xcorr_allcharge.txt',
                 'a+') as w, open(
-                'E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/FDR/results/comet_xcorr_missed_allcharge.txt',
+                self.workpath+'FDR/results/comet_xcorr_missed_allcharge.txt',
                 'a+') as mw:
             for key, value in comet_results.items():
                 _line = '\t'.join(value) + '\n'
@@ -660,8 +627,7 @@ class ProteomeTools(object):
                     mw.write(_line)
         ## get FDR by splite charge
         if split_by_charge:
-            with open('E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE30/FDR/results/comet_FDR_results_xcorr.txt',
-                      'a+') as w:
+            with open(self.workpath+'FDR/results/comet_FDR_results_xcorr.txt','a+') as w:
                 for t in tqdm(threshold_score):
                     target_hits = [0, 0, 0, 0, 0]  # charge:2,3,4,5
                     FDR_count = [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]
@@ -688,7 +654,7 @@ class ProteomeTools(object):
                         w.write(_line + '\n')
         else:
         ## get FDR don't splite charge
-            with open('E:/data/1/get_ions/ProteomeTools2/selected_mgf2/NCE35/FDR/results/comet_FDR_results_xcorr_allcharge.txt','a+') as w:
+            with open(self.workpath+'FDR/results/comet_FDR_results_xcorr_allcharge.txt','a+') as w:
                 for t in tqdm(threshold_score):
                     target_hits = 0
                     FDR_count = [0,0]
@@ -706,7 +672,7 @@ class ProteomeTools(object):
                     w.write(_line+'\n')
 
 if __name__ == '__main__':
-    proteometools = ProteomeTools(workpath='E:/data/1/get_ions/ProteomeTools2/selected_mgf2')
+    proteometools = ProteomeTools(workpath='E:/data/1/get_ions/ProteomeTools2/selected_mgf2',nce='30')
     proteometools.find_unkonwn_aa()
     ##top1 hits rate
     proteometools.get_different_peptide()

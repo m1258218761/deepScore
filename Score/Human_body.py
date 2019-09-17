@@ -14,6 +14,8 @@ class Humanbody_proteome(object):
     def __init__(self,workpath='',nce=''):
         self.workpath = workpath
         self.nce = nce
+        self.top1_workpath = self.workpath+'/'+self.nce+'_random10000/pep_credibility/'
+        self.fdr_workpath = self.workpath+'/'+self.nce+'_fdr/'
 
     '''
      stage 1 : Preparation before Score by Comet and P-score,including preprocessing of spectrum,Atfer stage 1,Before
@@ -39,7 +41,6 @@ class Humanbody_proteome(object):
                         if 'END IONS' in line:
                             _line += line
                             break
-                    # print(title)
                     mgf_listcontent.append(_line)
                     mgf_content[title] = _line
         return mgf_content,mgf_listcontent
@@ -77,18 +78,18 @@ class Humanbody_proteome(object):
 
     #   Select 10000 spectrum for Assessment of top1 hit rate
     def choice_scpctrum(self):
-        _,mgf_listcontent = self.read_mgf('35_test_by.mgf',self.workpath+'/mgf')
+        _,mgf_listcontent = self.read_mgf(self.nce+'_test_by.mgf',self.workpath+'/mgf')
         _index = np.random.choice(len(mgf_listcontent),10000,replace=False).tolist()
         print('[Preparation Info]selected index : ' + str(_index))
         print('[Preparation Info]selected total number : ' + str(len(_index)))
-        with open(self.workpath + '/35_random10000/selected_35.mgf','a+') as mw:
+        with open(self.top1_workpath+'selected_'+self.nce+'.mgf','a+') as mw:
             for i in _index:
                 mw.write(mgf_listcontent[i])
             print('[Preparation Info]write selected spectrum success ! ')
 
     #   Remove additional information from the spectrum to generate a spectrum that can be identified by Comet
     def get_search_spectrumforcomet(self):
-        with open(self.workpath + '/35_random10000/pep_credibility/selected_35.mgf', 'r') as rf, open(self.workpath + '/35_random10000/pep_credibility/selected_35_forcomet.mgf', 'a+') as w:
+        with open(self.top1_workpath+'selected_'+self.nce+'.mgf', 'r') as rf, open(self.top1_workpath + 'selected_'+self.nce+'_forcomet.mgf', 'a+') as w:
             while True:
                 line = rf.readline()
                 if not line:
@@ -132,8 +133,8 @@ class Humanbody_proteome(object):
      #  Delete the unconventional amino acids from Comet identification results:U
     def find_unkonwn_aa(self):
         ## random 10000
-        with open(self.workpath+'/35_random10000/pep_credibility/selected_35_forcomet.txt','r') as r, open(
-                self.workpath+'/35_random10000/pep_credibility/_selected_35_forcomet.txt', 'a+') as w:
+        with open(self.top1_workpath+'selected_'+self.nce+'_forcomet.txt','r') as r, open(
+                self.top1_workpath+'_selected_'+self.nce+'_forcomet.txt', 'a+') as w:
             ## random raw
             # with open('E:/data/1/get_ions/by_ions_PPM/40_fdr/00603_A02_P004608_B00I_A00_R1_HCDFT.txt','r') as r,open('E:/data/1/get_ions/by_ions_PPM/40_fdr/_00603_A02_P004608_B00I_A00_R1_HCDFT.txt','a+') as w:
             r.__next__()
@@ -261,10 +262,10 @@ class Humanbody_proteome(object):
         count = 0
         unmissed_total_PSMs = 0
         unmissed_count = 0
-        with open(self.workpath+'/30_random10000/pep_credibility/selected_30_missed_peptide.txt','a+') as mtw, open(self.workpath+'/30_random10000/pep_credibility/selected_30_missed_PSMs.mgf',
-                'a+') as mgw, open(self.workpath+'/30_random10000/pep_credibility/selected_30_unmissed_PSMs.mgf','a+') as ugw,open(self.workpath+'/30_random10000/pep_credibility/selected_30_unmissed_peptide.txt','a+') as utw:
-            comet_results, CHARGE = self.read_comet_results(have_decoy=False, have_charge=True,filename=self.workpath+'/30_random10000/pep_credibility/selected_30_forcomet.txt')
-            correcte_results, correcte_spectrum = self.read_correct_PSM(filename=self.workpath+'/30_random10000/pep_credibility/selected_30.mgf')
+        with open(self.top1_workpath+'selected_'+self.nce+'_missed_peptide.txt','a+') as mtw, open(self.top1_workpath+'selected_'+self.nce+'_missed_PSMs.mgf',
+                'a+') as mgw, open(self.top1_workpath+'selected_'+self.nce+'_unmissed_PSMs.mgf','a+') as ugw,open(self.top1_workpath+'selected_'+self.nce+'_unmissed_peptide.txt','a+') as utw:
+            comet_results, CHARGE = self.read_comet_results(have_decoy=False, have_charge=True,filename=self.top1_workpath+'selected_30_forcomet.txt')
+            correcte_results, correcte_spectrum = self.read_correct_PSM(filename=self.top1_workpath+'selected_'+self.nce+'.mgf')
             for i in range(len(correcte_results)):
                 correcte_seq = correcte_results[i]
                 if comet_results.get(str(i + 1)) == None:
@@ -310,16 +311,15 @@ class Humanbody_proteome(object):
 
     #   Annotate regular ions(b1+,y1+,b2+,y2+) and generate the files can be scored by P-score
     def get_byions(self):
-        m = MATCH('E:/data/1/get_ions/by_ions_PPM/35_random10000/pep_credibility', 'selected_35_missed_PSMs.mgf')
+        m = MATCH(self.top1_workpath, 'selected_'+self.nce+'_missed_PSMs.mgf')
         m.write_files()
-        um = MATCH('E:/data/1/get_ions/by_ions_PPM/35_random10000/pep_credibility', 'selected_35_unmissed_PSMs.mgf')
+        um = MATCH(self.top1_workpath, 'selected_'+self.nce+'_unmissed_PSMs.mgf')
         um.write_files()
 
     #   Obtaining Probability Matrix by Model
     def get_MatrixP(self):
         file_mode = 'missed'
-        NCE = '30'
-        file = 'selected_' +NCE + '_'+file_mode+'_PSMs_byions.txt'
+        file = 'selected_' +self.nce + '_'+file_mode+'_PSMs_byions.txt'
         ##Model parameters
         BATCH_SIZE = 16
         Label_number = 4
@@ -333,7 +333,7 @@ class Humanbody_proteome(object):
         model.eval()
         if torch.cuda.is_available():
             model.cuda()
-        Data = data(self.workpath+'/30_random10000/pep_credibility', Label_number,run_model='Test',test_file=file)
+        Data = data(self.top1_workpath, Label_number,run_model='Test',test_file=file)
         Test_data, Test_label, Test_length, _, _, _ = Data.GetData(BATCH_SIZE)
         print('Test data number: ' + str(len(Test_length) * BATCH_SIZE))
         with torch.no_grad():
@@ -358,8 +358,7 @@ class Humanbody_proteome(object):
             Cosine = []
             Cosine_0_rate = []
             print('[Score Info]start to write results...')
-            with open( self.workpath+'/35_random10000/pep_credibility/sorted_by_pccandother/' + file_mode + '_score_pep_P.txt',
-                                    'a+') as fw:
+            with open( self.top1_workpath+'sorted_by_pccandother/' + file_mode + '_score_pep_P.txt','a+') as fw:
                 while start + 2 <= len(Results):
                     _p = P[int(start / 2)]
                     _matrix_p = Matrix_P[int(start / 2)]
@@ -393,9 +392,9 @@ class Humanbody_proteome(object):
         all_correct_pep = []
         all_charge = []
         pre_index = []
-        pre_index_bycharge = [[], [], [], [], []]
+        pre_index_bycharge = [[] for i in range(5)]
         org_index = []
-        org_index_bycharge = [[], [], [], [], []]
+        org_index_bycharge = [[] for i in range(5)]
         with open(
                                 self.workpath+'/30_random10000/pep_credibility/selected_30_' + file_mode + '_peptide.txt',
                                 'r') as mr, open(
@@ -452,38 +451,38 @@ class Humanbody_proteome(object):
             for i in range(len(pre_index_bycharge)):
                 _total_number.append(len(pre_index_bycharge[i]))
             print('total : ' + str(total_number))
-            c1 = []
-            c2 = []
-            _c1 = [[], [], [], [], []]
-            _c2 = [[], [], [], [], []]
+            orginal_diss = []
+            predict_diss = []
+            orginal_diss_charge = [[] for i in range(5)]
+            predict_diss_charge = [[] for i in range(5)]
             for c in range(10):
                 on = org_index.count(c)
                 orate = on / total_number
                 pn = pre_index.count(c)
                 prate = pn / total_number
-                c1.append(on)
-                c2.append(pn)
+                orginal_diss.append(on)
+                predict_diss.append(pn)
                 for i in range(len(org_index_bycharge)):
-                    _c1[i].append(org_index_bycharge[i].count(c))
-                    _c2[i].append(pre_index_bycharge[i].count(c))
+                    orginal_diss_charge[i].append(org_index_bycharge[i].count(c))
+                    predict_diss_charge[i].append(pre_index_bycharge[i].count(c))
                 print('[Score Info]orginal rank ' + str(c + 1) + ' : ' + str(on) + ' || rate : ' + str(round(orate, 3)))
                 print('[Score Info]predict rank ' + str(c + 1) + ' : ' + str(pn) + ' || rate : ' + str(round(prate, 3)))
-            c1.append(total_number - sum(c1))
-            c2.append(total_number - sum(c2))
-            for i in range(len(_c1)):
-                _c1[i].append(_total_number[i] - sum(_c1[i]))
-                _c2[i].append(_total_number[i] - sum(_c2[i]))
-            print('[Score Info]original : ' + str(c1))
-            print('[Score Info]predict : ' + str(c2))
-            for i in range(len(_c1)):
-                print('[Score Info]charge ' + str(i + 2) + ' original: ' + str(_c1[i]))
-                print('[Score Info]charge ' + str(i + 2) + ' predict: ' + str(_c2[i]))
+            orginal_diss.append(total_number - sum(orginal_diss))
+            predict_diss.append(total_number - sum(predict_diss))
+            for i in range(len(orginal_diss_charge)):
+                orginal_diss_charge[i].append(_total_number[i] - sum(orginal_diss_charge[i]))
+                predict_diss_charge[i].append(_total_number[i] - sum(predict_diss_charge[i]))
+            print('[Score Info]original : ' + str(orginal_diss))
+            print('[Score Info]predict : ' + str(predict_diss))
+            for i in range(len(orginal_diss_charge)):
+                print('[Score Info]charge ' + str(i + 2) + ' original: ' + str(orginal_diss_charge[i]))
+                print('[Score Info]charge ' + str(i + 2) + ' predict: ' + str(predict_diss_charge[i]))
 
     '''---------------------------------FDR ROC plot(random .raw file)---------------------------------'''
     #   Get FDR ROC plot Data file of Comet
     def get_comet_fdr(self, split_by_charge=False):
         score_type = 0      ##0 is xcorr,1 is evalue
-        comet_results, CHARGE = self.read_comet_results(have_decoy=True, have_score=score_type, have_charge=True,filename=self.workpath+'/30_fdr/00705_F03_P005217_B0V_A00_R2_HCDFT.txt')
+        comet_results, CHARGE = self.read_comet_results(have_decoy=True, have_score=score_type, have_charge=True,filename=self.fdr_workpath+'00705_F03_P005217_B0V_A00_R2_HCDFT.txt')
         keys = list(comet_results.keys())
         top_pep_xcorr = []
         for key in keys:
@@ -494,8 +493,7 @@ class Humanbody_proteome(object):
         score_threshold = []
         ## get Comet FDR by splite charge
         if split_by_charge == True:
-            with open('E:/data/1/get_ions/by_ions_PPM/35_fdr/comet_top1_pep_xcorr.txt', 'a+') as w, open(
-                    'E:/data/1/get_ions/by_ions_PPM/35_fdr/comet_FDR_results_xcorr.txt', 'a+') as ww:
+            with open(self.fdr_workpath+'comet_top1_pep_xcorr.txt', 'a+') as w, open(self.fdr_workpath+'comet_FDR_results_xcorr.txt', 'a+') as ww:
                 for i in range(len(top_pep_xcorr)):
                     _line = '\t'.join(top_pep_xcorr[i]) + '\n'
                     w.write(_line)
@@ -519,7 +517,7 @@ class Humanbody_proteome(object):
                         ww.write(_line)
         ## get Comet FDR not splite charge
         elif split_by_charge == False:
-            with open('E:/data/1/get_ions/by_ions_PPM/30_fdr/comet_top1_pep_xcorr_allcharge.txt','a+') as w,open('E:/data/1/get_ions/by_ions_PPM/30_fdr/comet_FDR_results_xcorr_allcharge.txt','a+') as ww:
+            with open(self.fdr_workpath+'comet_top1_pep_xcorr_allcharge.txt','a+') as w,open(self.fdr_workpath+'comet_FDR_results_xcorr_allcharge.txt','a+') as ww:
                 for i in range(len(top_pep_xcorr)):
                     _line = '\t'.join(top_pep_xcorr[i]) + '\n'
                     w.write(_line)
@@ -544,10 +542,10 @@ class Humanbody_proteome(object):
 
     #   generate all PSMs file and Annotate regular ions
     def get_all_psms_and_byions(self):
-        comet_results = self.read_comet_results(have_decoy=True,filename=self.workpath+'/30_fdr/00705_F03_P005217_B0V_A00_R2_HCDFT.txt')
+        comet_results = self.read_comet_results(have_decoy=True,filename=self.fdr_workpath+'00705_F03_P005217_B0V_A00_R2_HCDFT.txt')
         _comet_index = list(comet_results.keys())
         ## get spectrum
-        with open(self.workpath+'/35_fdr/00631_E02_P004778_B00M_A00_R1_CIDFT.mgf', 'r') as rf:
+        with open(self.fdr_workpath+'00631_E02_P004778_B00M_A00_R1_CIDFT.mgf', 'r') as rf:
             _spectrum_content = []
             start = 1
             while True:
@@ -568,7 +566,7 @@ class Humanbody_proteome(object):
                             break
         print('[Score Info]spectrum number : ' + str(len(_spectrum_content)))
         ##product all psms spectrum
-        with open(self.workpath+'/35_fdr/all_psms_spectrums.mgf', 'a+') as w:
+        with open(self.fdr_workpath+'all_psms_spectrums.mgf', 'a+') as w:
             for _index in tqdm(range(len(_spectrum_content))):
                 _spectrum = _spectrum_content[_index]
                 __index = _comet_index[_index]
@@ -590,12 +588,12 @@ class Humanbody_proteome(object):
                             continue
                         _line.append(_l)
                     w.write(''.join(_line))
-        m = MATCH(self.workpath+'/35_fdr', 'all_psms_spectrums.mgf')
+        m = MATCH(self.fdr_workpath, 'all_psms_spectrums.mgf')
         m.write_files()
 
     #   split Annotated files for P-score,Because it takes up too much memory
     def split_byions(self, each_number=100000):
-        with open('E:/data/1/get_ions/by_ions_PPM/40_fdr/all_psms_spectrums_byions.txt', 'r') as r:
+        with open(self.fdr_workpath+'all_psms_spectrums_byions.txt', 'r') as r:
             count = 0
             while True:
                 line = r.readline()
@@ -608,8 +606,7 @@ class Humanbody_proteome(object):
                     line = r.readline()
                     _line.append(line)
                 _flag = int(count / each_number) + 1
-                with open('E:/data/1/get_ions/by_ions_PPM/40_fdr/splited_by_ions/all_psms_spectrums_byions' + str(
-                        _flag) + '.txt', 'a+') as w:
+                with open(self.fdr_workpath+'splited_by_ions/all_psms_spectrums_byions' + str(_flag) + '.txt', 'a+') as w:
                     w.write(''.join(_line))
                 _line = []
                 count += 1
@@ -618,7 +615,7 @@ class Humanbody_proteome(object):
     #   Get FDR ROC plot Data file of P-score
     def get_pscore_fdr(self, split_by_charge=False):
         pep_score = []
-        with open(self.workpath+'/30_fdr/30_fdr_pep_score_4label_P.txt', 'r') as sr:
+        with open(self.fdr_workpath+self.nce+'_fdr_pep_score_4label_P.txt', 'r') as sr:
             while True:
                 line = sr.readline()
                 if not line.strip():
@@ -650,7 +647,7 @@ class Humanbody_proteome(object):
         print('[Score Info]top1 number : ' + str(len(top_score_pep)))
         ## get score threshold and write top1 txt
         score_threshold = []
-        with open(self.workpath+'/30_fdr/top1_pep_4label_P_changescore_allcharge3.txt', 'a+') as aw:
+        with open(self.fdr_workpath+'top1_pep_4label_P_changescore_allcharge.txt', 'a+') as aw:
             for l in top_score_pep:
                 _score = float(l[4])
                 if _score not in score_threshold:
@@ -663,7 +660,7 @@ class Humanbody_proteome(object):
         print('[Score Info]score threshold number : ' + str(len(score_threshold)))
         ## get FDR split charge
         if split_by_charge == True:
-            with open(self.workpath+'/35_fdr/FDR_results_4label_P_noPQC.txt','a+') as fw:
+            with open(self.fdr_workpath+'FDR_results_4label_P_changescore.txt','a+') as fw:
                 for t in tqdm(score_threshold):
                     threshold_pep = list([x for x in top_score_pep if float(x[4])>=t])
                     for c in ['2','3','4','5','6']:
@@ -679,7 +676,7 @@ class Humanbody_proteome(object):
                         fw.write(_line)
         ## get FDR don't split charge
         elif split_by_charge == False:
-            with open('E:/data/1/get_ions/by_ions_PPM/30_fdr/FDR_results_4label_P_changescore_allcharge3.txt', 'a+') as fw:
+            with open(self.fdr_workpath+'FDR_results_4label_P_changescore_allcharge.txt', 'a+') as fw:
                 for t in tqdm(score_threshold):
                     threshold_pep = list([x for x in top_score_pep if float(x[4]) >= t])
                     false_pep = list([x for x in threshold_pep if x[0].startswith('DECOY-')])
@@ -694,7 +691,7 @@ class Humanbody_proteome(object):
                     fw.write(_line)
 
 if __name__ == '__main__':
-    human = Humanbody_proteome(workpath='E:/data/1/get_ions/by_ions_PPM')
+    human = Humanbody_proteome(workpath='E:/data/1/get_ions/by_ions_PPM',nce='30')
     human.find_unkonwn_aa()
     ##random selected 10000 spectrum for top1 hits rate
     human.get_different()
