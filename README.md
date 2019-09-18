@@ -10,4 +10,5 @@ A Peptide Spectrum Match Scoring Algorithm based on Deep Learning Model.
 > Model training is needed before scoring with P-score,and the output of the model is different at different stages.
 ><img src="img/process flow.png" width="50%" high="50%"></img>
 
-We also tried model BiLstm+CRF, but did't use it in the end.
+We also tried to use model BiLstm+CRF, but did't use it in the end.
+The CRF need to install python libraries named [pytorch-crf](https://github.com/kmkurn/pytorch-crf).
