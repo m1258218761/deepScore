@@ -7,6 +7,7 @@ import gc
 from sklearn.metrics import classification_report
 import numpy as np
 from  Resnet_model import ResNet18
+from BiLstm_CRF_model import BiLstm_CRF
 from tqdm import tqdm
 
 NCE = '30'
@@ -91,8 +92,10 @@ class Pscore_Model(object):
         lr_rate = 1e-4
         bestacc = 0.0
         bestloss = 100.0
-        #   Run Training
+        #   Run Training, Resnet+Attention and Bilstm+CRF is all available,just replace the corresponding model.
         model = ResNet18(batch_size=self.BATCH_SIZE,weight=self.weights,feature_size=self.features_size)
+        # model = BiLstm_CRF(hidden_dim=1024,features_number=features_size,layer_num=2,batch_size=BATCH_SIZE,label_number=Label_number)
+
         #   pretrain and Transfer Learning
         if self.pretrained:
             if os.path.exists('./Log/pre_model_2_bestacc_4label.pkl'):
@@ -152,6 +155,8 @@ class Pscore_Model(object):
                             t_input_features = torch.tensor(T_data).cuda()
                             t_ions_level = torch.tensor(Test_label[T_index]).cuda()
                             t_batch_length = torch.tensor(Test_length[T_index]).cuda()
+                            if t_input_features.shape[0] != self.BATCH_SIZE:
+                                continue
                             y_true, y_pred, results, loss, _ = model(t_input_features.permute(0,2,1), t_ions_level,t_batch_length)
                             test_loss += loss
                             Y_T.extend(y_true)

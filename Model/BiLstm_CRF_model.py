@@ -12,21 +12,6 @@ from torchcrf import CRF
 
 torch.manual_seed(1)
 
-#   Ordinal Regression, unuseed.
-def y_true_to_ordinal(y_true):
-    t_tag=[]
-    for t in y_true:
-        temp = [0]*10
-        for i in range(t):
-           temp[i]=1
-        t_tag.extend(temp)
-    return torch.tensor(t_tag)
-def ordinal_predict(self,feats):
-    p = self.sig(feats)
-    i = p > 0.5
-    pred_tag = torch.sum(i.view(-1,10),1)
-    return pred_tag,p,i.float()
-
 class BiLSTM_CRF(nn.Module):
     def __init__(self,hidden_dim,features_number,layer_num=2,batch_size=16,label_number=4):
         super(BiLSTM_CRF, self).__init__()
@@ -57,7 +42,8 @@ class BiLSTM_CRF(nn.Module):
 
     def forward(self, x, y_true, batch_length):
         x = x.permute(0,2,1)
-        out = self.get_lstm_features(x.reshape(self.batch_size,max(batch_length),self.features_number),batch_length)
+        print(x.shape)
+        out = self.get_lstm_features(x.reshape(len(batch_length),max(batch_length),self.features_number),batch_length)
         mask = y_true != -1
         loss = self.crf(out.view(out.size(0),-1,11),y_true.view(y_true.size(0),-1),mask=mask.view(mask.size(0),-1))
         loss = -loss/self.batch_size
@@ -79,6 +65,21 @@ class BiLSTM_CRF(nn.Module):
 
 def BiLstm_CRF(hidden_dim,features_number,layer_num=2,batch_size=16,label_number=4):
     return BiLSTM_CRF(hidden_dim,features_number,layer_num,batch_size,label_number)
+
+#   Ordinal Regression, just for test.
+def y_true_to_ordinal(y_true):
+    t_tag=[]
+    for t in y_true:
+        temp = [0]*10
+        for i in range(t):
+           temp[i]=1
+        t_tag.extend(temp)
+    return torch.tensor(t_tag)
+def ordinal_predict(self,feats):
+    p = self.sig(feats)
+    i = p > 0.5
+    pred_tag = torch.sum(i.view(-1,10),1)
+    return pred_tag,p,i.float()
 
 if __name__ == '__main__':
     tran_tags = y_true_to_ordinal(torch.tensor([1,2,3,10,0]))

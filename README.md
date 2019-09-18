@@ -9,3 +9,5 @@ A Peptide Spectrum Match Scoring Algorithm based on Deep Learning Model.
 ### P-score Process Flow
 > Model training is needed before scoring with P-score,and the output of the model is different at different stages.
 ><img src="img/process flow.png" width="50%" high="50%"></img>
+
+We also tried model BiLstm+CRF, but did't use it in the end.
