@@ -1,5 +1,6 @@
+#coding=utf-8
+
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from data_util import data
 import os
