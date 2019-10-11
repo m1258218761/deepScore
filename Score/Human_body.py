@@ -150,11 +150,12 @@ class Humanbody_proteome(object):
                     w.write(line)
 
 
-    ###---Basic function---:read Comet identification results and return
+    ###---Basic function---:read identification results and return
     ###   Parameter: have_decoyt:Return results include Decoy;
-    ###              have_score:0 means return xcorr, 1 means return evalue;
+    ###              have_score:0 means return score, 1 means return evalue;
     ###              have_charge:retrun peptide charge
-    ###              filename:Comet identification file
+    ###              filename:identification file
+    #   Comet
     def read_comet_results(self,have_decoy=False, have_score=0, have_charge=False, filename=''):
         with open(filename, 'r') as rf:
             rf.readline()
@@ -211,11 +212,81 @@ class Humanbody_proteome(object):
                         results[Index].append([sequence + '_' + modif, _score])
                     else:
                         results[Index].append(sequence + '_' + modif)
-        print('[Score Info]comet results number : ' + str(len(results)))
+        print('[Score Info]Comet results number : ' + str(len(results)))
         if have_charge:
             return results, CHARGE
         else:
             return results
+
+    #   MSGF+
+    def read_msgf_results(self,have_decoy=False, have_score=0, have_charge=False, filename=''):
+        with open('E:/data/1/get_ions/by_ions_PPM/30_fdr/MSGF/00705_F03_P005217_B0V_A00_R2_HCDFT.tsv', 'r') as rf:
+            _results = {}
+            CHARGE = {}
+            _flag = 0
+            _ = rf.readline()
+            while True:
+                line = rf.readline()
+                if line.strip() == '':
+                    break
+                l = line.strip().split('\t')
+                _index = str(int(l[1].split('=')[1]) + 1)
+                _charge = l[8]
+                if int(_charge) > 6:
+                    _charge = '6'
+                _score = l[12]
+                _evalue = l[14]
+                _seq = l[9][2:-2]
+                _M = []
+                _seq = _seq.replace('+15.995', 'm')
+                _seq = _seq.replace('+57.021', 'c')
+                if '+' in _seq or 'U' in _seq or 'X' in _seq:
+                    continue
+                if 'c' in _seq:
+                    _C = ';Carbamidomethyl@C'
+                    _seq = _seq.replace('c', '')
+                else:
+                    _C = ';'
+                while 'm' in _seq:
+                    _m_index = _seq.index('m')
+                    _M.append('Oxidation@M' + str(_m_index))
+                    _seq = _seq.replace('m', '', 1)
+                if 'Decoy_' in l[10]:
+                    _seq = 'DECOY-' + _seq
+                    if not have_decoy:
+                        continue
+                _modif = ';'.join(_M) + _C
+                if _results.get(_index) == None:
+                    if have_score:
+                        _results[_index] = [[_seq + '_' + _modif, _evalue]]
+                    else:
+                        _results[_index] = [_seq + '_' + _modif]
+                    if have_charge:
+                        CHARGE[_index] = _charge
+                elif _results.get(_index) != None:
+                    if have_score:
+                        for i in _results[_index]:
+                            _s = _seq + '_' + _modif
+                            if i[0] == _s:
+                                _flag = 1
+                        if _flag == 1:
+                            _flag = 0
+                            continue
+                        _results[_index].append([_seq + '_' + _modif, _evalue])
+                    else:
+                        for i in _results[_index]:
+                            _s = _seq + '_' + _modif
+                            if i == _s:
+                                _flag = 1
+                        if _flag == 1:
+                            _flag = 0
+                            continue
+                        _results[_index].append(_seq + '_' + _modif)
+            print('[Score Info]MSGF+ results number : ' + str(len(_results)))
+            if have_charge:
+                return _results, CHARGE
+            else:
+                return _results
 
     #---Basic function---:get correct peptide and spectrum
     def read_correct_PSM(self, filename=''):
@@ -479,11 +550,12 @@ class Humanbody_proteome(object):
                 print('[Score Info]charge ' + str(i + 2) + ' predict: ' + str(predict_diss_charge[i]))
 
     '''---------------------------------FDR ROC plot(random .raw file)---------------------------------'''
-    #   Get FDR ROC plot Data file of Comet
-    def get_comet_fdr(self, split_by_charge=False):
+    #   Get FDR ROC plot Data file of Search engine
+    def get_search_fdr(self, split_by_charge=False):
         score_type = 0      ##0 is xcorr,1 is evalue
         comet_results, CHARGE = self.read_comet_results(have_decoy=True, have_score=score_type, have_charge=True,filename=self.fdr_workpath+'00705_F03_P005217_B0V_A00_R2_HCDFT.txt')
         keys = list(comet_results.keys())
+        keys = sorted(keys, key=lambda x: int(x))  # if MSGF+
         top_pep_xcorr = []
         for key in keys:
             _pep_xcorr = comet_results[key][0]
@@ -544,6 +616,7 @@ class Humanbody_proteome(object):
     def get_all_psms_and_byions(self):
         comet_results = self.read_comet_results(have_decoy=True,filename=self.fdr_workpath+'00705_F03_P005217_B0V_A00_R2_HCDFT.txt')
         _comet_index = list(comet_results.keys())
+        _comet_index = sorted(_comet_index, key=lambda x: int(x))  # if MSGF+
         ## get spectrum
         with open(self.fdr_workpath+'00631_E02_P004778_B00M_A00_R1_CIDFT.mgf', 'r') as rf:
             _spectrum_content = []
@@ -634,6 +707,7 @@ class Humanbody_proteome(object):
         top_score_pep = []
         comet_results, CHARGE = self.read_comet_results(have_decoy=True, have_charge=True)
         keys = list(comet_results.keys())
+        keys = sorted(keys, key=lambda x: int(x))  # if MSGF+
         start = 0
         for key in keys:
             one = []
@@ -699,7 +773,7 @@ if __name__ == '__main__':
     human.get_MatrixP()
     human.eval_prediction()
     ##random selected .raw file for FDR ROC plot
-    human.get_comet_fdr()
+    human.get_search_fdr()
     human.get_all_psms_and_byions()
     human.split_byions()
     human.get_MatrixP()

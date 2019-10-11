@@ -67,11 +67,12 @@ class ProteomeTools(object):
                 else:
                     w.write(line)
 
-    ###---Basic function---:read Comet identification results and return
+    ###---Basic function---:read Search egine identification results and return
     ###   Parameter: have_decoyt:Return results include Decoy;
-    ###              have_score:0 means return xcorr, 1 means return evalue;
+    ###              have_score:0 means return score, 1 means return evalue;
     ###              have_charge:retrun peptide charge
-    ###              filename:Comet identification file
+    ###              filename:identification file
+    #   Comet
     def read_comet_results(self, have_decoy=False, have_score=0, have_charge=False, filename=''):
         with open(filename, 'r') as rf:
             results = {}
@@ -133,6 +134,76 @@ class ProteomeTools(object):
             return results, CHARGE
         else:
             return results
+
+    #   MSGF+
+    def read_msgf_results(self,have_decoy=False, have_score=0, have_charge=False, filename=''):
+        with open(filename, 'r') as rf:
+            _results = {}
+            CHARGE = {}
+            _flag = 0
+            _ = rf.readline()
+            while True:
+                line = rf.readline()
+                if line.strip() == '':
+                    break
+                l = line.strip().split('\t')
+                _index = str(int(l[1].split('=')[1]) + 1)
+                _charge = l[8]
+                if int(_charge) > 6:
+                    _charge = '6'
+                _score = l[12]
+                _evalue = l[14]
+                _seq = l[9][2:-2]
+                _M = []
+                _seq = _seq.replace('+15.995', 'm')
+                _seq = _seq.replace('+57.021', 'c')
+                if '+' in _seq or 'U' in _seq or 'X' in _seq:
+                    continue
+                if 'c' in _seq:
+                    _C = ';Carbamidomethyl@C'
+                    _seq = _seq.replace('c', '')
+                else:
+                    _C = ';'
+                while 'm' in _seq:
+                    _m_index = _seq.index('m')
+                    _M.append('Oxidation@M' + str(_m_index))
+                    _seq = _seq.replace('m', '', 1)
+                if 'Decoy_' in l[10]:
+                    _seq = 'DECOY-' + _seq
+                    if not have_decoy:
+                        continue
+                _modif = ';'.join(_M) + _C
+                if _results.get(_index) == None:
+                    if have_score:
+                        _results[_index] = [[_seq + '_' + _modif, _evalue]]
+                    else:
+                        _results[_index] = [_seq + '_' + _modif]
+                    if have_charge:
+                        CHARGE[_index] = _charge
+                elif _results.get(_index) != None:
+                    if have_score:
+                        for i in _results[_index]:
+                            _s = _seq + '_' + _modif
+                            if i[0] == _s:
+                                _flag = 1
+                        if _flag == 1:
+                            _flag = 0
+                            continue
+                        _results[_index].append([_seq + '_' + _modif, _evalue])
+                    else:
+                        for i in _results[_index]:
+                            _s = _seq + '_' + _modif
+                            if i == _s:
+                                _flag = 1
+                        if _flag == 1:
+                            _flag = 0
+                            continue
+                        _results[_index].append(_seq + '_' + _modif)
+            print('MSGF+ results number : ' + str(len(_results)))
+            if have_charge:
+                return _results, CHARGE
+            else:
+                return _results
 
     #---Basic function---:get correct peptide and spectrum
     def read_correct_PSMs(self, filename=''):
