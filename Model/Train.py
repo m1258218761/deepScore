@@ -11,7 +11,7 @@ from  Resnet_model import ResNet18
 from BiLstm_CRF_model import BiLstm_CRF
 from tqdm import tqdm
 
-NCE = '30'
+NCE = '30'                  ##NCE = 30 or 35
 run_model = 'Train'         ## run model:Train or Test
 pretrained = False         ##pretrained:True or False
 
