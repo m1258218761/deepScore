@@ -230,5 +230,5 @@ class Pscore_Model(object):
             self.Test()
 
 if __name__ == '__main__':
-    model = Pscore_Model(NCE='30',run_model='Train',weights=weights4)
+    model = Pscore_Model(NCE=NCE,run_model='Train',weights=weights4)
     model.Run()
