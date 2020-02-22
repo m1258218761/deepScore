@@ -398,7 +398,7 @@ class ProteomeTools(object):
                 for i in range(len(matrix_p)):
                     _p = list(map(float, matrix_p[i].split(',')))
                     _score = _score + _p[y_true[i]]
-                __score = float(_score) * ((len(y_true) - y_true.count(0) + 1) / (y_true.count(0) + 1))
+                __score = float(_score) * ((len(y_true) - y_true.count(0) + 1) / (len(y_true) + 1))
                 score.append(__score)
             start = 0
             while True:

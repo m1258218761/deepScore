@@ -6,18 +6,18 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MaxAbsScaler
+import time
 
 class data(object):
-    def __init__(self,workpath,label_number,features_norm=False,Standardization=False,discretization=0,run_model='Train',train_file='',validation_file='',test_file='',discretization_f = []):
+    def __init__(self,workpath,label_number,features_norm=False,Standardization=False,discretization=0,run_model='test',discretization_f = [],test_file=''):
         self.workpath = workpath
-        self.train_file = train_file
-        self.validation_file = validation_file
-        self.test_file = test_file
         self.label_number = label_number
+        self.nce = 30
         self.run_model = run_model
+        self.test_file = test_file
         self.Standardization = Standardization      ##是否对特征进行标准化处理，True：是，False：否
         self.discretization = discretization        ##0:等宽离散，1：等频离散，2：回归，不进行离散化
-        self.discretization_f = discretization_f    ##等频离散分段阈值,内置变量，自动获取，无需手动添加
+        self.discretization_f = discretization_f                  ##等频离散分段阈值,内置变量，自动获取，无需手动添加
         self.features_norm = features_norm          ##碱性、质量、螺旋性、疏水性、等电点是否进行/Max了处理，True：进行了处理，False：未进行处理
         if self.features_norm:
             ## t/max
@@ -106,6 +106,8 @@ class data(object):
         line = line.replace('\n','').split('\t')
         peptide = line[0]
         charge = int(line[1])
+        if charge >5:
+            charge = 5
         b_ion = line[2].split(',')[0]
         y_ion = line[2].split(',')[1]
         peptide_list = []
@@ -158,6 +160,9 @@ class data(object):
         p_charge[charge-1] = 1
         features_list.extend(p_charge)
 
+        # #b，y离子带电量
+        # features_list.extend([1,1])
+
         #肽的电子迁移率  Charge-Arg-0.5*(His+Lys)
         Mob = charge - peptide_list.count('R') - 0.5 * (peptide_list.count('H') + peptide_list.count('K'))
         features_list.extend([Mob])
@@ -171,14 +176,21 @@ class data(object):
             norm_intensity = line[6].split(',')
             label = [0]*4
             label = list(map(float,norm_intensity))
+        # if self.label_number == 2:
+        #     norm_intensity = line[7].split(',')[0:3:2]
+        #     label = [0]*2
+        #     label = list(map(float,norm_intensity))
+        # elif self.label_number == 4:
+        #     norm_intensity = line[7].split(',')
+        #     label = [0]*4
+        #     label = list(map(float,norm_intensity))
         return features_list,label
         ## 105
 
     def label_discretization(self,label,length):
         print('[data processing]start label discretization !')
-        if self.discretization == 0:        ##等宽离散
-            label = np.ceil(np.array(label)*10).astype(int).tolist()      ##区间宽度 0.1
-            # label = np.ceil(np.array(label)*20).astype(int).tolist()        ##区间宽度 0.05
+        if self.discretization == 0:        ##等宽离散 区间宽度 0.1
+            label = np.ceil(np.array(label)*10).astype(int).tolist()
         if self.discretization == 1:        ##等频离散
             class_number = 9
             w = [1.0 * i / class_number for i in range(class_number)]
@@ -213,19 +225,14 @@ class data(object):
         print('[data processing]label discretization end !')
         return d_label
 
-    def get_level01(self,norm_intensity):
-        i = float(norm_intensity)
-        level = 0
-        if i>0:
-            level= 1
-        return level
-
+    ##cast time : 0.2
     def get_batch(self,data,label,length,batch_size):
         batch_data = []
         batch_label = []
         batch_length = []
         batch_index = []
         print('[data processing]start get batch !')
+        start_time = time.time()
         data_size = len(data)
         if self.run_model == 'Train':
             p = np.random.permutation(data_size).tolist()
@@ -234,8 +241,8 @@ class data(object):
         batch_count = 0
         end = 0
         start = 0
+        # while (end+batch_size) <= data_size:
         while (end + batch_size-data_size) < batch_size :
-        # while (end+batch_size) < data_size:
             start = batch_size*batch_count
             batch_count += 1
             end = start + batch_size
@@ -251,7 +258,8 @@ class data(object):
             batch_data.append(temp_data)
             batch_label.append(temp_label)
             batch_length.append(temp_length)
-        print('[data processing]get batch end !')
+        end_time = time.time()
+        print('[data processing]get batch end ! cost time : ' + str(end_time-start_time))
         return batch_data,batch_label,batch_length,batch_index
 
     def padding(self,batch_data,batch_label,batch_length,batch_size):
@@ -265,6 +273,7 @@ class data(object):
                             batch_label[index][l].append([-1,-1])
                         else:
                             batch_label[index][l].append([-1,-1,-1,-1])
+        print('[data processing]padding end !')
         return batch_data,batch_label,batch_length
 
     def data_Standardization(self,data,length):
@@ -286,15 +295,6 @@ class data(object):
         print('[data processing]data standardization end !')
         return _data
 
-    def storage_data(self,data,label,length,v_data,v_label,v_length,nce,charge):
-        if os.path.exists('./_data_' + str(self.label_number)+'_nce_'+str(nce)+'_charge_'+str(charge)):
-            pass
-        else:
-            os.mkdir('./_data_' + str(self.label_number)+'_nce_'+str(nce)+'_charge_'+str(charge))
-        np.savez('./_data_' + str(self.label_number)+'_nce_'+str(nce)+'_charge_'+str(charge) + '/_data_train'+'_'+str(charge) ,data = np.array(data),label = np.array(label),length = np.array(length))
-        np.savez('./_data_' + str(self.label_number)+'_nce_'+str(nce)+'_charge_'+str(charge) + '/_data_validation'+'_'+str(charge) ,data = np.array(v_data),label = np.array(v_label),length = np.array(v_length))
-        print('[data processing]have storaged data !')
-
     def read_data(self,train_file):
         with open(self.workpath + '/' + train_file) as r:
             _content = []
@@ -310,6 +310,7 @@ class data(object):
                 one_seq_label = []
                 one_seq_length = [pairs_count + 1]
                 while i <= pairs_count and line.strip('\n'):
+                    # features, labels = self.get_features_2_norm(line)
                     features, labels = self.get_features_2_norm_105(line)
                     one_seq_content.extend([features])
                     one_seq_label.extend([labels])
@@ -322,11 +323,14 @@ class data(object):
             return _content, _label, _length
 
     def GetData(self,batch_size):
+        self.nce = 30
         print('[data processing]data processing model: ' + self.run_model)
         if self.run_model == 'Train':
             print('[data processing]Start processing data files!')
-            train_content,train_label,train_length = self.read_data(self.train_file)
-            validation_content,validation_label,validation_length = self.read_data(self.validation_file)
+            train_file = str(self.charge) + '_train_by.txt'
+            validation_file = str(self.charge) + '_validation_by.txt'
+            train_content,train_label,train_length = self.read_data(train_file)
+            validation_content,validation_label,validation_length = self.read_data(validation_file)
             train_label = self.label_discretization(train_label, train_length)
             train_content = self.data_Standardization(train_content, train_length)
             validation_label = self.label_discretization(validation_label,validation_length)
@@ -339,15 +343,25 @@ class data(object):
             train_content = train_content[:_l]
             train_label = train_label[:_l]
             train_length = train_length[:_l]
+            Train_data_index = batch_index[:_l]
+            # v_data = validation_content
+            # v_label = validation_label
+            # v_length = v_batch_length
+            # v_data_index = v_batch_index
         elif self.run_model == 'Test':
+            if self.test_file == '':
+                self.test_file = 'selected_' + str(self.nce) + '_missed_PSMs_byions.txt'
+            print('[data processing]data file name : ' + self.test_file)
             train_content,train_label,train_length = self.read_data(self.test_file)
             train_label = self.label_discretization(train_label, train_length)
             train_content = self.data_Standardization(train_content, train_length)
             train_content, train_label, train_length, batch_index = self.get_batch(train_content, train_label,train_length, batch_size)
             train_content, train_label, train_length = self.padding(train_content, train_label, train_length, batch_size)
+            Train_data_index = batch_index
             validation_content = []
             validation_label = []
             validation_length = []
+            v_data_index = []
         return train_content,train_label,train_length,validation_content,validation_label,validation_length
     # format:btach_size,seq_length,features_number
 
@@ -357,15 +371,3 @@ if __name__ == '__main__':
     print(len(Train_data[0][0]))
     print(Train_label[0])
     print(Train_length)
-
-    # print(Test_index)
-    # print(len(Train_data[0][0][1]))
-    # sentence = [Train_data[0][i][1::2] for i in range(3)]
-    # label = [Train_data[0][i][2::2] for i in range(3)]
-    # print(sentence)
-    # print(label)
-    # print(len(Train_data[0]))
-    # s = test.get_features_2_norm('AKHAVSEGTKAVTKYMc	2	A,KHAVSEGTKAVTKYMc	*	b1+,b1++,y14+,y14++	0.0,0.0,0.0,0.0	0.0,0.0,0.0,0.0	0.0,0.0,0.0,0.0')
-    # print(s[0][:141] + StandardScaler().fit_transform(np.array(s[0][141:]).reshape(-1,1)).reshape(-1).tolist())
-    # print(s)
-    # print(sorted(test.dicP.items(),key=lambda item:item[1]))
