@@ -10,7 +10,7 @@ import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from data_score import data
+from data_util_tool import data
 from match_ions import MATCH
 from Resnet_model import ResNet18
 

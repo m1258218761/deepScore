@@ -32,6 +32,7 @@ class mainFrame(wx.Frame):
         self.btnS.Bind(wx.EVT_BUTTON, self.CaculateScore)
 
         self.Status = self.CreateStatusBar()
+        self.Status.SetStatusText('--- 欢迎使用deepScore-α 打分工具 ---')
         self.Show(True)
 
     def CaculateScore(self, event):
