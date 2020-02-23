@@ -3,10 +3,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.functional import pad
 import numpy as np
 from Attention import MultiHeadedAttention
-from Position_encoding import PositionalEncoding
 
 ##############################
 #########  ResNet

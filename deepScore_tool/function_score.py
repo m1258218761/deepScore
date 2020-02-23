@@ -6,7 +6,6 @@
 # @Time: 2020/2/21
 
 import torch
-import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
@@ -70,7 +69,6 @@ class ScoreEngine(object):
         print('spectrum number : ' + str(len(spectrums)))
         return spectrums
 
-    # todo 判断两个文件索引数量是否匹配,
     def productPSMs(self):
         """
         形成PSMs文件并对所有PSM进行离子标注，生成标注结果文件，用于模型输入
@@ -78,6 +76,7 @@ class ScoreEngine(object):
         :param spectrumfile:
         :return:
         """
+        assert len(self.peptides) == len(self.spectrums),'候选肽数量与质谱谱图数量不一致！'
         with open('./data/allPSMs.mgf', 'w', encoding='utf-8') as fw:
             for i in range(len(self.spectrums)):
                 temp_peptides = self.peptides[str(i+1)]

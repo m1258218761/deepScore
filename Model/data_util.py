@@ -357,15 +357,3 @@ if __name__ == '__main__':
     print(len(Train_data[0][0]))
     print(Train_label[0])
     print(Train_length)
-
-    # print(Test_index)
-    # print(len(Train_data[0][0][1]))
-    # sentence = [Train_data[0][i][1::2] for i in range(3)]
-    # label = [Train_data[0][i][2::2] for i in range(3)]
-    # print(sentence)
-    # print(label)
-    # print(len(Train_data[0]))
-    # s = test.get_features_2_norm('AKHAVSEGTKAVTKYMc	2	A,KHAVSEGTKAVTKYMc	*	b1+,b1++,y14+,y14++	0.0,0.0,0.0,0.0	0.0,0.0,0.0,0.0	0.0,0.0,0.0,0.0')
-    # print(s[0][:141] + StandardScaler().fit_transform(np.array(s[0][141:]).reshape(-1,1)).reshape(-1).tolist())
-    # print(s)
-    # print(sorted(test.dicP.items(),key=lambda item:item[1]))

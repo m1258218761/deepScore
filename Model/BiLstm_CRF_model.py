@@ -1,9 +1,11 @@
 # coding=utf-8
 import torch
-import torch.nn as nn
-from torch.nn import utils as nn_utils
 import numpy as np
+import torch.nn as nn
 from torchcrf import CRF
+from torch.nn import utils as nn_utils
+
+
 
 ##############################
 #########  BILSTM + CRF

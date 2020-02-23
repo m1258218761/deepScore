@@ -1,13 +1,15 @@
 #coding=utf-8
 import os
-import numpy as np
 import copy
-from tqdm import tqdm
-from  data_util import data
-from match_ions import MATCH
+
 import torch
+import numpy as np
+from tqdm import tqdm
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_similarity
+
+from  data_util import data
+from match_ions import MATCH
 from Resnet_model import ResNet18
 
 class Humanbody_proteome(object):

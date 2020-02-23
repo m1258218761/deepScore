@@ -1,14 +1,17 @@
 #coding=utf-8
 import copy
-from match_ions import MATCH
-import torch
-from tqdm import tqdm
-import numpy as np
 import math
-from data_util import data
-from Resnet_model import ResNet18
+
+import torch
+import numpy as np
+from tqdm import tqdm
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_similarity
+
+from data_util import data
+from match_ions import MATCH
+from Resnet_model import ResNet18
+
 
 '''
 This is for ProteomeTools2 dataset
