@@ -4,6 +4,7 @@
 # @Author: MX
 # @E-mail: minxinm@foxmail.com
 # @Time: 2020/2/21
+import os
 
 import torch
 from tqdm import tqdm
@@ -24,6 +25,9 @@ class ScoreEngine(object):
         self.NCE = NCE
         self.peptides = self.readpeptide(peptidefile)
         self.spectrums = self.readspectrum(spectrumfile)
+        for f in os.listdir('./data'):
+            if f in ['allPSMs.mgf','allPSMs_byions.txt','FDR.txt','FDR_plot.png','PSMs_score.txt']:
+                os.remove('./data/'+f)
 
     def readpeptide(self, filepath):
         """
@@ -142,6 +146,11 @@ class ScoreEngine(object):
             start = 0
             print('start to write results...')
             with open('./data/PSMs_score.txt', 'a+') as fw:
+                keys = sorted(list(map(int,self.peptides.keys())))
+                candidats = []
+                for k in keys:
+                    for p in self.peptides[str(k)]:
+                        candidats.append([str(k),p])
                 while start + 2 <= len(Results):
                     _p = P[int(start / 2)]
                     _matrix_p = Matrix_P[int(start / 2)]
@@ -153,7 +162,7 @@ class ScoreEngine(object):
                         _score = _score + _p[_true[i]]
                     PQC = ((len(_true) - _true.count(0) + 1) / (len(_true) + 1))
                     _score = _score * PQC
-                    line = '%s\t%s\t%s\n'%(','.join(list(map(str,_true))), ','.join(list(map(str,_pred))), str(_score))
+                    line = '%s\t%s\t%s\n'%(candidats[int(start/2)][0], candidats[int(start/2)][1], str(_score))
                     fw.write(line)
                     start += 2
             print('write results end!')
