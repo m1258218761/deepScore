@@ -6,11 +6,8 @@
 # @Time: 2020/2/19
 
 import os
-import re
-import sys
 
 import wx
-import win32
 
 from function_score import ScoreEngine
 
@@ -33,6 +30,9 @@ class mainFrame(wx.Frame):
 
         self.btnS = wx.Button(self.panel, label="开始打分计算", pos=(300, 160), size=(100, 40))
         self.btnS.Bind(wx.EVT_BUTTON, self.CaculateScore)
+
+        self.Status = self.CreateStatusBar()
+        self.Show(True)
 
     def CaculateScore(self, event):
         """
@@ -59,7 +59,7 @@ class mainFrame(wx.Frame):
         if nce not in ['30', '35']:
             wx.MessageBox("输入正确碰撞能量:30 or 35", "提示消息", wx.OK | wx.YES_DEFAULT)
             return
-        scoreengine = ScoreEngine('./data/%s'%(peptidefile), './data/%s'%(spectrumfile), nce)
+        scoreengine = ScoreEngine('./data/%s'%(peptidefile), './data/%s'%(spectrumfile), nce, self.Status)
         scoreengine.productPSMs()
         scoreengine.caculateScore()
         self.scoreengine = scoreengine
@@ -81,7 +81,7 @@ class mainFrame(wx.Frame):
         if nce not in ['30', '35']:
             wx.MessageBox("输入正确碰撞能量:30 or 35", "提示消息", wx.OK | wx.YES_DEFAULT)
             return
-        scoreengine = ScoreEngine('./data/test_peptide.txt', './data/test_spectrum.mgf', nce)
+        scoreengine = ScoreEngine('./data/test_peptide.txt', './data/test_spectrum.mgf', nce, self.Status)
         scoreengine.productPSMs()
         scoreengine.caculateScore()
         self.scoreengine = scoreengine

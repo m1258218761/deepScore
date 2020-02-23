@@ -15,7 +15,7 @@ from match_ions import MATCH
 from Resnet_model import ResNet18
 
 class ScoreEngine(object):
-    def __init__(self, peptidefile, spectrumfile, NCE):
+    def __init__(self, peptidefile, spectrumfile, NCE, Status):
         """
         实例初始化，读取候选肽以及质谱谱图
         :param peptidefile:
@@ -23,6 +23,7 @@ class ScoreEngine(object):
         """
         self.spectrumfile = spectrumfile
         self.NCE = NCE
+        self.Status = Status
         self.peptides = self.readpeptide(peptidefile)
         self.spectrums = self.readspectrum(spectrumfile)
         for f in os.listdir('./data'):
@@ -81,6 +82,7 @@ class ScoreEngine(object):
         :return:
         """
         assert len(self.peptides) == len(self.spectrums),'候选肽数量与质谱谱图数量不一致！'
+        self.Status.SetStatusText('正在根据候选肽和质谱生成PSM ...')
         with open('./data/allPSMs.mgf', 'w', encoding='utf-8') as fw:
             for i in range(len(self.spectrums)):
                 temp_peptides = self.peptides[str(i+1)]
@@ -102,6 +104,7 @@ class ScoreEngine(object):
                             continue
                         _line.append(_l)
                     fw.write(''.join(_line))
+        self.Status.SetStatusText('碎片离子标注中 ...')
         m = MATCH('./data','allPSMs.mgf')
         m.write_files()
 
@@ -111,6 +114,7 @@ class ScoreEngine(object):
         :param NCE:
         :return:
         """
+        self.Status.SetStatusText('正在进行分数计算 ...')
         ##Model parameters
         BATCH_SIZE = 16
         Label_number = 4
@@ -166,6 +170,7 @@ class ScoreEngine(object):
                     fw.write(line)
                     start += 2
             print('write results end!')
+        self.Status.SetStatusText('分数计算完毕')
 
     def caculateFDR_Plot(self):
         """
@@ -173,6 +178,7 @@ class ScoreEngine(object):
         :param peptidefile:
         :return:
         """
+        self.Status.SetStatusText('正在计算FDR值 ...')
         PSMs_score = []
         with open('./data/PSMs_score.txt', 'r') as fr:
             while True:
@@ -221,7 +227,7 @@ class ScoreEngine(object):
                     _line = 'Threshold peptide score : ' + str(t) + '\tFDR : ' + str(False_Discover_Rate) + '\ttarget hits : ' + str(
                         len(threshold_seq_score)) + '\tcharge : ' + str(c)
                     fw.write(_line + '\n')
-
+        self.Status.SetStatusText('FDR计算完毕，进行曲线图绘制 ...')
         self.plot_qvalue()
 
     def get_qvalue(self, file = './data/FDR.txt', charge_number = 3):
@@ -309,6 +315,7 @@ class ScoreEngine(object):
         # plt.savefig('D:/1.svg', dpi=800, format='svg')
         plt.savefig('./data//FDR_plot.png', dpi=600)
         plt.show()
+        self.Status.SetStatusText('FDR曲线图绘制完成，已保存到data目录下')
 
 
 
