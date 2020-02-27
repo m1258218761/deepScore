@@ -17,11 +17,11 @@ class mainFrame(wx.Frame):
         wx.Frame.__init__(self, parent=parent, title='肽谱匹配打分', size=(550, 300))
         self.panel = wx.Panel(self)
 
-        self.title = wx.StaticText(self.panel, -1, label='deepScore-α 打分工具', pos=(100, 10), size=(150, 20))
+        self.title = wx.StaticText(self.panel, -1, label='deepScore-α 打分工具', pos=(100, 10), size=(150, 20), style = wx.ALIGN_CENTER)
         font = wx.Font(18, wx.DECORATIVE, wx.ITALIC, wx.NORMAL)
         self.title.SetFont(font)
         self.info = wx.StaticText(self.panel, -1, label='提示：需要进行打分的候选肽文件(.txt)以及相应质谱文件(.mgf)应存储在同一目录data文件目录下，文件格式参考测试用例',
-                                  pos=(100, 50), size=(300, 60))
+                                  pos=(100, 50), size=(300, 60), style = wx.ALIGN_CENTER)
         self.text0 = wx.StaticText(self.panel, -1, label='NCE:', pos=(100, 150), size=(50, 20))
         self.text1 = wx.TextCtrl(self.panel, value='30', pos=(160, 150), size=(50, 20))
 
