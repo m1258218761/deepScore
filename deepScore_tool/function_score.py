@@ -339,9 +339,14 @@ class ScoreEngine(object):
         return allPsms_score
 
     def write_identity(self, allPsms_score, Scorethreshold):
+        """
+        根据分数计算结果以及获得的分数阈值写入符合条件的鉴定结果
+        :param allPsms_score:
+        :param Scorethreshold:
+        :return:
+        """
         self.Status.SetStatusText('开始写入鉴定结果...')
-        print(Scorethreshold)
-        with open('./data/identity_results.%s'%(self.output_fileformat),'a+',encoding='utf-8') as fw:
+        with open('./data/identity_results.%s'%(self.output_fileformat),'w',encoding='utf-8') as fw:
             identity_results = {}
             for l in allPsms_score:
                 if identity_results.get(l[0]) == None:
@@ -359,7 +364,7 @@ class ScoreEngine(object):
 
     def caculateFDR(self, allPsms_score):
         """
-        通过PSMs打分计算出FDR值，再根据给定FDR阈值输出鉴定结果，并按需求绘制FDR曲线图
+        通过PSMs打分计算出FDR值，再根据给定FDR阈值计算出分数阈值，写入鉴定结果，并按需求绘制FDR曲线图
         :param allPsms_score:
         :return:
         """
