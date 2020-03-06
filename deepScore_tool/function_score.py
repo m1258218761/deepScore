@@ -7,32 +7,51 @@
 import os
 
 import torch
+import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 from data_util_tool import data
-from match_ions import MATCH
+from match_ions_tool import MATCH
 from Resnet_model import ResNet18
 
 class ScoreEngine(object):
-    def __init__(self, peptidefile, spectrumfile, NCE, Status):
+    def __init__(self, peptidefile, spectrumfile, NCE, inputformat, ppm, t_fdr, outputformat, addstates, Status):
         """
-        实例初始化，读取候选肽以及质谱谱图
+        实例初始化，完成质谱文件读取以及候选肽读取
         :param peptidefile:
         :param spectrumfile:
+        :param NCE:
+        :param inputformat:
+        :param ppm:
+        :param t_fdr:
+        :param outputformat:
+        :param addstates:
+        :param Status:
         """
         self.spectrumfile = spectrumfile
         self.NCE = NCE
+        self.input_format = inputformat
+        self.ppm_threshold = ppm
+        self.fdr_threshold = t_fdr
+        self.output_fileformat = outputformat
+        self.add_states = addstates
         self.Status = Status
-        self.peptides = self.readpeptide(peptidefile)
+        if self.input_format == 'MSGF+':
+            self.peptides = self.readpeptide_msgf(peptidefile, have_decoy=True)
+        elif self.input_format == 'Comet':
+            self.peptides = self.readpeptide_comet(peptidefile, have_decoy=True)
+        else:
+            print('aaa'+ str(self.input_format))
+            self.peptides = self.readpeptide_customize(peptidefile)
         self.spectrums = self.readspectrum(spectrumfile)
         for f in os.listdir('./data'):
             if f in ['allPSMs.mgf','allPSMs_byions.txt','FDR.txt','FDR_plot.png','PSMs_score.txt']:
                 os.remove('./data/'+f)
 
-    def readpeptide(self, filepath):
+    def readpeptide_customize(self, filepath):
         """
-        读取候选肽序列存储文件并以字典形式返回
+        读取自定义候选肽序列存储文件并以字典形式返回
         :param filepath:
         :return:{'1':[peptide1,peptide2,...],'2':[peptide1,peptide2,...],...}
         """
@@ -49,6 +68,149 @@ class ScoreEngine(object):
                 else:
                     peptides[index] = [peptide]
         return peptides
+
+    def readpeptide_msgf(self, filepath, have_decoy=False, have_score=False, have_charge=False):
+        """
+        读取来自MSGF+的鉴定结果并将候选肽以字典形式返回
+        :param filepath:
+        :param have_decoy:
+        :param have_score:
+        :param have_charge:
+        :return:
+        """
+        with open(filepath, 'r', encoding='utf-8') as rf:
+            _results = {}
+            CHARGE = {}
+            _flag = 0
+            _ = rf.readline()
+            while True:
+                line = rf.readline()
+                if line.strip() == '':
+                    break
+                l = line.strip().split('\t')
+                _index = str(int(l[1].split('=')[1]) + 1)
+                _charge = l[8]
+                if int(_charge) > 6:
+                    _charge = '6'
+                _evalue = l[14]
+                _seq = l[9][2:-2]
+                _M = []
+                _seq = _seq.replace('+15.995', 'm')
+                _seq = _seq.replace('+57.021', 'c')
+                if '+' in _seq or 'U' in _seq or 'X' in _seq:
+                    continue
+                if 'c' in _seq:
+                    _C = ';Carbamidomethyl@C'
+                    _seq = _seq.replace('c', '')
+                else:
+                    _C = ';'
+                while 'm' in _seq:
+                    _m_index = _seq.index('m')
+                    _M.append('Oxidation@M' + str(_m_index))
+                    _seq = _seq.replace('m', '', 1)
+                if 'Decoy_' in l[10]:
+                    _seq = 'DECOY-' + _seq
+                    if not have_decoy:
+                        continue
+                _modif = ';'.join(_M) + _C
+                if _results.get(_index) == None:
+                    if have_score:
+                        _results[_index] = [[_seq + '_' + _modif, _evalue]]
+                    else:
+                        _results[_index] = [_seq + '_' + _modif]
+                    if have_charge:
+                        CHARGE[_index] = _charge
+                elif _results.get(_index) != None:
+                    if have_score:
+                        for i in _results[_index]:
+                            _s = _seq + '_' + _modif
+                            if i[0] == _s:
+                                _flag = 1
+                        if _flag == 1:
+                            _flag = 0
+                            continue
+                        _results[_index].append([_seq + '_' + _modif, _evalue])
+                    else:
+                        for i in _results[_index]:
+                            _s = _seq + '_' + _modif
+                            if i == _s:
+                                _flag = 1
+                        if _flag == 1:
+                            _flag = 0
+                            continue
+                        _results[_index].append(_seq + '_' + _modif)
+            print('MSGF+ results number : ' + str(len(_results)))
+            if have_charge:
+                return _results, CHARGE
+            else:
+                return _results
+
+    def readpeptide_comet(self, filepath, have_decoy=False, have_score=False, have_charge=False):
+        """
+        读取来自Comet的鉴定结果并将候选肽以字典形式返回
+        :param filepath:
+        :param have_decoy:
+        :param have_score:
+        :param have_charge:
+        :return:
+        """
+        with open(filepath, 'r', encoding='utf-8') as rf:
+            rf.readline()
+            rf.__next__()
+            results = {}
+            CHARGE = {}
+            while True:
+                line = rf.readline().strip().split('\t')
+                if line == ['']:
+                    break
+                Index = line[0]
+                sequence = line[11]
+                if 'U' in sequence or 'X' in sequence:
+                    continue
+                _charge = line[2]
+                modif = line[17]
+                if 'DECOY_' in line[15].split(',')[0]:
+                    if have_decoy:
+                        sequence = 'DECOY-' + line[11]
+                    else:
+                        continue
+                if modif != '-':
+                    modif = modif.split(',')
+                    _M = []
+                    _C = ''
+                    for one in modif:
+                        _one_modif = one.split('_')
+                        if _one_modif[1] == 'V':
+                            _M.append('Oxidation@M' + _one_modif[0])
+                        else:
+                            if ';Carbamidomethyl@C' == _C:
+                                continue
+                            else:
+                                _C = ';Carbamidomethyl@C'
+                    if _C == '':
+                        _C = ';'
+                    _M = sorted(_M, key=lambda x: int(x.split('@M')[1]))
+                    _modif = ';'.join(_M) + _C
+                    modif = _modif
+                else:
+                    modif = ';'
+                if results.get(Index) == None:
+                    if have_score:
+                        results[Index] = [[sequence + '_' + modif, line[5]]]
+                    else:
+                        results[Index] = [sequence + '_' + modif]
+                    if have_charge:
+                        CHARGE[Index] = _charge
+                elif results.get(Index) != None:
+                    if have_score:
+                        results[Index].append([sequence + '_' + modif, line[5]])
+                    else:
+                        results[Index].append(sequence + '_' + modif)
+        print('Comet results number : ' + str(len(results)))
+        if have_charge:
+            return results, CHARGE
+        else:
+            return results
 
     def readspectrum(self, filepath):
         """
@@ -105,7 +267,7 @@ class ScoreEngine(object):
                         _line.append(_l)
                     fw.write(''.join(_line))
         self.Status.SetStatusText('碎片离子标注中 ...')
-        m = MATCH('./data','allPSMs.mgf')
+        m = MATCH('./data','allPSMs.mgf',self.ppm_threshold)
         m.write_files()
 
     def caculateScore(self):
@@ -121,7 +283,7 @@ class ScoreEngine(object):
         features_size = 105
         weights4 = [0.6550, 0.1455, 0.0718, 0.0385, 0.0236, 0.0158, 0.0113, 0.0084, 0.0063, 0.0047, 0.0190]
         #   Run
-        print('start...')
+        print('start caculate score ...')
         model = ResNet18(BATCH_SIZE, weight=weights4, feature_size=features_size)
         model.load_state_dict(torch.load('./model_trained/NCE%s_model.pkl'%(self.NCE)))
         model.eval()
@@ -146,46 +308,65 @@ class ScoreEngine(object):
                 Results.extend(results)
                 P.extend(_p[0])
                 Matrix_P.extend(_p[1])
-
             start = 0
-            print('start to write results...')
-            with open('./data/PSMs_score.txt', 'a+') as fw:
-                keys = sorted(list(map(int,self.peptides.keys())))
-                candidats = []
-                for k in keys:
-                    for p in self.peptides[str(k)]:
-                        candidats.append([str(k),p])
-                while start + 2 <= len(Results):
-                    _p = P[int(start / 2)]
-                    _matrix_p = Matrix_P[int(start / 2)]
-                    _true = Results[start]
-                    _pred = Results[start + 1]
-                    _score = 1.0
-                    for i in range(len(_matrix_p)):
-                        _p =  _matrix_p[i]
-                        _score = _score + _p[_true[i]]
-                    PQC = ((len(_true) - _true.count(0) + 1) / (len(_true) + 1))
-                    _score = _score * PQC
-                    line = '%s\t%s\t%s\n'%(candidats[int(start/2)][0], candidats[int(start/2)][1], str(_score))
-                    fw.write(line)
-                    start += 2
-            print('write results end!')
+            allPsms_score =[]
+            keys = sorted(list(map(int, self.peptides.keys())))
+            candidats = []
+            for k in keys:
+                for p in self.peptides[str(k)]:
+                    candidats.append([str(k), p])
+            while start + 2 <= len(Results):
+                _p = P[int(start / 2)]
+                _matrix_p = Matrix_P[int(start / 2)]
+                _true = Results[start]
+                _pred = Results[start + 1]
+                _score = 1.0
+                for i in range(len(_matrix_p)):
+                    _p = _matrix_p[i]
+                    _score = _score + _p[_true[i]]
+                PQC = ((len(_true) - _true.count(0) + 1) / (len(_true) + 1))
+                _score = _score * PQC
+                allPsms_score.append([candidats[int(start / 2)][0], candidats[int(start / 2)][1], str(_score)])
+                start += 2
+            if self.add_states['isScorefile']:
+                print('start to write PSMs score ...')
+                with open('./data/PSMs_score.txt', 'a+', encoding='utf-8') as fw:
+                    for l in allPsms_score:
+                        line = '%s\t%s\t%s\n' % (l[0],l[1],l[2])
+                        fw.write(line)
+                print('write results end!')
         self.Status.SetStatusText('分数计算完毕')
+        return allPsms_score
 
-    def caculateFDR_Plot(self):
+    def write_identity(self, allPsms_score, Scorethreshold):
+        self.Status.SetStatusText('开始写入鉴定结果...')
+        print(Scorethreshold)
+        with open('./data/identity_results.%s'%(self.output_fileformat),'a+',encoding='utf-8') as fw:
+            identity_results = {}
+            for l in allPsms_score:
+                if identity_results.get(l[0]) == None:
+                    identity_results[l[0]] = [l]
+                else:
+                    identity_results[l[0]].append(l)
+            keys = sorted(list(identity_results.keys()),key=lambda x:int(x))
+            for k in keys:
+                temp_results = sorted(identity_results[k],key=lambda x:float(x[2]),reverse=True)
+                top1 = temp_results[0]
+                if float(top1[2])  >= float(Scorethreshold):
+                    fw.write('%s\t%s\t%s\n'%(top1[0],top1[1],top1[2]))
+        print('鉴定结果文件写入完毕')
+        self.Status.SetStatusText('鉴定结果写入完毕')
+
+    def caculateFDR(self, allPsms_score):
         """
-        通过PSMs打分计算出FDR值以及对应的target hits数量,并绘制FDR曲线图
-        :param peptidefile:
+        通过PSMs打分计算出FDR值，再根据给定FDR阈值输出鉴定结果，并按需求绘制FDR曲线图
+        :param allPsms_score:
         :return:
         """
         self.Status.SetStatusText('正在计算FDR值 ...')
         PSMs_score = []
-        with open('./data/PSMs_score.txt', 'r') as fr:
-            while True:
-                line = fr.readline().strip()
-                if not line:
-                    break
-                PSMs_score.append(float(line.split('\t')[2]))
+        for p in allPsms_score:
+            PSMs_score.append(float(p[2]))
         Charges= []
         with open(self.spectrumfile, 'r') as fr:
             while True:
@@ -213,6 +394,7 @@ class ScoreEngine(object):
             if temp[0][1] not in threshold_score:
                 threshold_score.append(round(temp[0][1],4))
         threshold_score = sorted(threshold_score)
+        score_fdr = {}
         with open('./data/FDR.txt', 'a+', encoding='utf-8') as fw:
             for _index in tqdm(range(len(threshold_score))):
                 t = threshold_score[_index]
@@ -227,8 +409,28 @@ class ScoreEngine(object):
                     _line = 'Threshold peptide score : ' + str(t) + '\tFDR : ' + str(False_Discover_Rate) + '\ttarget hits : ' + str(
                         len(threshold_seq_score)) + '\tcharge : ' + str(c)
                     fw.write(_line + '\n')
-        self.Status.SetStatusText('FDR计算完毕，进行曲线图绘制 ...')
-        self.plot_qvalue()
+
+                False_seq_score = list(x for x in threshold_all if x[0].startswith('DECOY-'))
+                try:
+                    False_Discover_Rate = len(False_seq_score) / (len(threshold_all) - len(False_seq_score))
+                except:
+                    False_Discover_Rate = 0.0
+
+                if score_fdr.get(False_Discover_Rate) == None:
+                    score_fdr[False_Discover_Rate] = t
+                else:
+                    if t > score_fdr[False_Discover_Rate]:
+                        score_fdr[False_Discover_Rate] = t
+
+        fdr_dif = abs(np.array(list(score_fdr.keys())) - 1)
+        fdr_index = np.argmin(fdr_dif)
+        Score_threshold = score_fdr[list(score_fdr.keys())[fdr_index]]
+
+        self.Status.SetStatusText('FDR计算完毕')
+        if self.add_states['isFdrplot']:
+            self.plot_qvalue()
+
+        self.write_identity(allPsms_score, Score_threshold)
 
     def get_qvalue(self, file = './data/FDR.txt', charge_number = 3):
         """
@@ -314,7 +516,7 @@ class ScoreEngine(object):
         plt.tight_layout()
         # plt.savefig('D:/1.svg', dpi=800, format='svg')
         plt.savefig('./data//FDR_plot.png', dpi=600)
-        plt.show()
+        # plt.show()
         self.Status.SetStatusText('FDR曲线图绘制完成，已保存到data目录下')
 
 
