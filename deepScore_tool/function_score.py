@@ -359,7 +359,7 @@ class ScoreEngine(object):
                 top1 = temp_results[0]
                 if float(top1[2])  >= float(Scorethreshold):
                     fw.write('%s\t%s\t%s\n'%(top1[0],top1[1],top1[2]))
-        print('鉴定结果文件写入完毕')
+        print('鉴定结果写入完毕')
         self.Status.SetStatusText('鉴定结果写入完毕')
 
     def caculateFDR(self, allPsms_score):
