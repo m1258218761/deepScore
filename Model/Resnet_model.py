@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from Attention import MultiHeadedAttention
+from .Attention_layer import MultiHeadedAttention
 
 ##############################
 #########  ResNet

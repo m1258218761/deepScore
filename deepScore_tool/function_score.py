@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 from data_util_tool import data
 from match_ions_tool import MATCH
-from Resnet_model import ResNet18
+from Model.Resnet_model import ResNet18
 
 class ScoreEngine(object):
     def __init__(self, peptidefile, spectrumfile, NCE, inputformat, ppm, t_fdr, outputformat, addstates, Status):
