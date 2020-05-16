@@ -11,9 +11,10 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from data_util_tool import data
-from match_ions_tool import MATCH
 from Model.Resnet_model import ResNet18
+from deepScore_tool.data_util_tool import data
+from deepScore_tool.match_ions_tool import MATCH
+
 
 class ScoreEngine(object):
     def __init__(self, peptidefile, spectrumfile, NCE, inputformat, ppm, t_fdr, outputformat, addstates, Status):
@@ -42,12 +43,12 @@ class ScoreEngine(object):
         elif self.input_format == 'Comet':
             self.peptides = self.readpeptide_comet(peptidefile, have_decoy=True)
         else:
-            print('aaa'+ str(self.input_format))
+            print('aaa' + str(self.input_format))
             self.peptides = self.readpeptide_customize(peptidefile)
         self.spectrums = self.readspectrum(spectrumfile)
         for f in os.listdir('./data'):
-            if f in ['allPSMs.mgf','allPSMs_byions.txt','FDR.txt','FDR_plot.png','PSMs_score.txt']:
-                os.remove('./data/'+f)
+            if f in ['allPSMs.mgf', 'allPSMs_byions.txt', 'FDR.txt', 'FDR_plot.png', 'PSMs_score.txt']:
+                os.remove('./data/' + f)
 
     def readpeptide_customize(self, filepath):
         """
@@ -62,7 +63,7 @@ class ScoreEngine(object):
                 if not line:
                     break
                 line = line.split('\t')
-                index,peptide = line
+                index, peptide = line
                 if peptides.get(index):
                     peptides[index].append(peptide)
                 else:
@@ -243,11 +244,11 @@ class ScoreEngine(object):
         :param spectrumfile:
         :return:
         """
-        assert len(self.peptides) == len(self.spectrums),'候选肽数量与质谱谱图数量不一致！'
+        assert len(self.peptides) == len(self.spectrums), '候选肽数量与质谱谱图数量不一致！'
         self.Status.SetStatusText('正在根据候选肽和质谱生成PSM ...')
         with open('./data/allPSMs.mgf', 'w', encoding='utf-8') as fw:
             for i in range(len(self.spectrums)):
-                temp_peptides = self.peptides[str(i+1)]
+                temp_peptides = self.peptides[str(i + 1)]
                 for p in temp_peptides:
                     _line = []
                     if p.startswith('DECOY-'):
@@ -267,7 +268,7 @@ class ScoreEngine(object):
                         _line.append(_l)
                     fw.write(''.join(_line))
         self.Status.SetStatusText('碎片离子标注中 ...')
-        m = MATCH('./data','allPSMs.mgf',self.ppm_threshold)
+        m = MATCH('./data', 'allPSMs.mgf', self.ppm_threshold)
         m.write_files()
 
     def caculateScore(self):
@@ -285,7 +286,7 @@ class ScoreEngine(object):
         #   Run
         print('start caculate score ...')
         model = ResNet18(BATCH_SIZE, weight=weights4, feature_size=features_size)
-        model.load_state_dict(torch.load('./model_trained/NCE%s_model.pkl'%(self.NCE)))
+        model.load_state_dict(torch.load('./model_trained/NCE%s_model.pkl' % (self.NCE)))
         model.eval()
         if torch.cuda.is_available():
             model.cuda()
@@ -309,7 +310,7 @@ class ScoreEngine(object):
                 P.extend(_p[0])
                 Matrix_P.extend(_p[1])
             start = 0
-            allPsms_score =[]
+            allPsms_score = []
             keys = sorted(list(map(int, self.peptides.keys())))
             candidats = []
             for k in keys:
@@ -332,7 +333,7 @@ class ScoreEngine(object):
                 print('start to write PSMs score ...')
                 with open('./data/PSMs_score.txt', 'a+', encoding='utf-8') as fw:
                     for l in allPsms_score:
-                        line = '%s\t%s\t%s\n' % (l[0],l[1],l[2])
+                        line = '%s\t%s\t%s\n' % (l[0], l[1], l[2])
                         fw.write(line)
                 print('write results end!')
         self.Status.SetStatusText('分数计算完毕')
@@ -346,19 +347,19 @@ class ScoreEngine(object):
         :return:
         """
         self.Status.SetStatusText('开始写入鉴定结果...')
-        with open('./data/identity_results.%s'%(self.output_fileformat),'w',encoding='utf-8') as fw:
+        with open('./data/identity_results.%s' % (self.output_fileformat), 'w', encoding='utf-8') as fw:
             identity_results = {}
             for l in allPsms_score:
                 if identity_results.get(l[0]) == None:
                     identity_results[l[0]] = [l]
                 else:
                     identity_results[l[0]].append(l)
-            keys = sorted(list(identity_results.keys()),key=lambda x:int(x))
+            keys = sorted(list(identity_results.keys()), key=lambda x: int(x))
             for k in keys:
-                temp_results = sorted(identity_results[k],key=lambda x:float(x[2]),reverse=True)
+                temp_results = sorted(identity_results[k], key=lambda x: float(x[2]), reverse=True)
                 top1 = temp_results[0]
-                if float(top1[2])  >= float(Scorethreshold):
-                    fw.write('%s\t%s\t%s\n'%(top1[0],top1[1],top1[2]))
+                if float(top1[2]) >= float(Scorethreshold):
+                    fw.write('%s\t%s\t%s\n' % (top1[0], top1[1], top1[2]))
         print('鉴定结果写入完毕')
         self.Status.SetStatusText('鉴定结果写入完毕')
 
@@ -372,7 +373,7 @@ class ScoreEngine(object):
         PSMs_score = []
         for p in allPsms_score:
             PSMs_score.append(float(p[2]))
-        Charges= []
+        Charges = []
         with open(self.spectrumfile, 'r') as fr:
             while True:
                 line = fr.readline().strip()
@@ -383,21 +384,21 @@ class ScoreEngine(object):
                     if int(charge) > 4:
                         charge = 4
                     Charges.append(charge)
-        indexs = sorted(list(self.peptides.keys()), key=lambda x:int(x))
+        indexs = sorted(list(self.peptides.keys()), key=lambda x: int(x))
         start = 0
         pep_score = []
         threshold_score = []
         for i in indexs:
             temp = []
             for pep in self.peptides[i]:
-                temp.append([pep,PSMs_score[start]])
+                temp.append([pep, PSMs_score[start]])
                 start += 1
-            temp = sorted(temp, key=lambda x:x[1], reverse=True)
+            temp = sorted(temp, key=lambda x: x[1], reverse=True)
             top_pepscore = temp[0]
-            top_pepscore.append(Charges[int(i)-1])
+            top_pepscore.append(Charges[int(i) - 1])
             pep_score.append(top_pepscore)
             if temp[0][1] not in threshold_score:
-                threshold_score.append(round(temp[0][1],4))
+                threshold_score.append(round(temp[0][1], 4))
         threshold_score = sorted(threshold_score)
         score_fdr = {}
         with open('./data/FDR.txt', 'a+', encoding='utf-8') as fw:
@@ -411,7 +412,8 @@ class ScoreEngine(object):
                         False_Discover_Rate = len(False_seq_score) / (len(threshold_seq_score) - len(False_seq_score))
                     except:
                         False_Discover_Rate = 0.0
-                    _line = 'Threshold peptide score : ' + str(t) + '\tFDR : ' + str(False_Discover_Rate) + '\ttarget hits : ' + str(
+                    _line = 'Threshold peptide score : ' + str(t) + '\tFDR : ' + str(
+                        False_Discover_Rate) + '\ttarget hits : ' + str(
                         len(threshold_seq_score)) + '\tcharge : ' + str(c)
                     fw.write(_line + '\n')
 
@@ -437,7 +439,7 @@ class ScoreEngine(object):
 
         self.write_identity(allPsms_score, Score_threshold)
 
-    def get_qvalue(self, file = './data/FDR.txt', charge_number = 3):
+    def get_qvalue(self, file='./data/FDR.txt', charge_number=3):
         """
         通过FDR计算q-value，返回q-value值以及对应的target hits数量
         :param file:
@@ -481,7 +483,7 @@ class ScoreEngine(object):
         绘制FDR曲线图并保存图片
         :return:
         """
-        q_values,target_hits = self.get_qvalue()
+        q_values, target_hits = self.get_qvalue()
         plt.figure(figsize=(15, 5), dpi=100)
         label1 = 'deepScore-α'
 
@@ -523,7 +525,6 @@ class ScoreEngine(object):
         plt.savefig('./data//FDR_plot.png', dpi=600)
         # plt.show()
         self.Status.SetStatusText('FDR曲线图绘制完成，已保存到data目录下')
-
 
 
 if __name__ == '__main__':

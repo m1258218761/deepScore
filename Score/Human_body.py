@@ -1,4 +1,4 @@
-#coding=utf-8
+# coding=utf-8
 import os
 import copy
 
@@ -8,24 +8,26 @@ from tqdm import tqdm
 from sklearn.metrics import r2_score
 from sklearn.metrics.pairwise import cosine_similarity
 
-from  data_util import data
-from match_ions import MATCH
-from Resnet_model import ResNet18
+from Model.data_util import data
+from Score.match_ions import MATCH
+from Model.Resnet_model import ResNet18
+
 
 class Humanbody_proteome(object):
-    def __init__(self,workpath='',nce=''):
+    def __init__(self, workpath='', nce=''):
         self.workpath = workpath
         self.nce = nce
-        self.top1_workpath = self.workpath+'/'+self.nce+'_random10000/pep_credibility/'
-        self.fdr_workpath = self.workpath+'/'+self.nce+'_fdr/'
+        self.top1_workpath = self.workpath + '/' + self.nce + '_random10000/pep_credibility/'
+        self.fdr_workpath = self.workpath + '/' + self.nce + '_fdr/'
 
     '''
      stage 1 : Preparation before Score by Comet and P-score,including preprocessing of spectrum,Atfer stage 1,Before
      the stage 2 begins, you need to use Comet for identification
     '''
-    #---Basic function---:reade the original .mgf file
-    def read_mgf(self,file,file_path):
-        mgf_content ={}
+
+    # ---Basic function---:reade the original .mgf file
+    def read_mgf(self, file, file_path):
+        mgf_content = {}
         mgf_listcontent = []
         with open(file_path + '/' + file, 'r') as rf:
             while True:
@@ -39,27 +41,29 @@ class Humanbody_proteome(object):
                         _line += line
                         line = rf.readline()
                         if 'TITLE=' in line:
-                            title = line.split('=')[1].replace('\n','')
+                            title = line.split('=')[1].replace('\n', '')
                         if 'END IONS' in line:
                             _line += line
                             break
                     mgf_listcontent.append(_line)
                     mgf_content[title] = _line
-        return mgf_content,mgf_listcontent
+        return mgf_content, mgf_listcontent
 
     #   Generate .mgf files corresponding to train,validation and test data
-    def get_mgf(self,mgf_path,data_path):
+    def get_mgf(self, mgf_path, data_path):
         mgf_list = os.listdir(mgf_path)
         # test_list = ['30_test_by.txt','35_test_by.txt','40_test_by.txt']
-        test_list = ['30_train_by.txt','35_train_by.txt','40_train_by.txt','30_validation_by.txt','35_validation_by.txt','40_validation_by.txt']
+        test_list = ['30_train_by.txt', '35_train_by.txt', '40_train_by.txt', '30_validation_by.txt',
+                     '35_validation_by.txt', '40_validation_by.txt']
         mgf_content = {}
         for mgf in mgf_list:
             extention = os.path.splitext(mgf)
             if extention[1] == '.mgf':
-                mgf_content[extention[0]],_ = self.read_mgf(mgf,mgf_path)
+                mgf_content[extention[0]], _ = self.read_mgf(mgf, mgf_path)
                 print('[Preparation Info]read mgf : ' + str(mgf))
         for file in test_list:
-            with open(data_path + '/' + file,'r') as r,open(data_path + '/pep_credibility/' + file[:-4] + '.mgf','a+') as w:
+            with open(data_path + '/' + file, 'r') as r, open(data_path + '/pep_credibility/' + file[:-4] + '.mgf',
+                                                              'a+') as w:
                 content = []
                 line = r.readline()
                 while True:
@@ -69,8 +73,8 @@ class Humanbody_proteome(object):
                     i = 0
                     _line = line.split('\t')
                     peptide = _line[0]
-                    title =_line[3]
-                    content.append([title,peptide])
+                    title = _line[3]
+                    content.append([title, peptide])
                     while i <= pairs_count and line.strip('\n'):
                         line = r.readline()
                         i += 1
@@ -80,18 +84,19 @@ class Humanbody_proteome(object):
 
     #   Select 10000 spectrum for Assessment of top1 hit rate
     def choice_scpctrum(self):
-        _,mgf_listcontent = self.read_mgf(self.nce+'_test_by.mgf',self.workpath+'/mgf')
-        _index = np.random.choice(len(mgf_listcontent),10000,replace=False).tolist()
+        _, mgf_listcontent = self.read_mgf(self.nce + '_test_by.mgf', self.workpath + '/mgf')
+        _index = np.random.choice(len(mgf_listcontent), 10000, replace=False).tolist()
         print('[Preparation Info]selected index : ' + str(_index))
         print('[Preparation Info]selected total number : ' + str(len(_index)))
-        with open(self.top1_workpath+'selected_'+self.nce+'.mgf','a+') as mw:
+        with open(self.top1_workpath + 'selected_' + self.nce + '.mgf', 'a+') as mw:
             for i in _index:
                 mw.write(mgf_listcontent[i])
             print('[Preparation Info]write selected spectrum success ! ')
 
     #   Remove additional information from the spectrum to generate a spectrum that can be identified by Comet
     def get_search_spectrumforcomet(self):
-        with open(self.top1_workpath+'selected_'+self.nce+'.mgf', 'r') as rf, open(self.top1_workpath + 'selected_'+self.nce+'_forcomet.mgf', 'a+') as w:
+        with open(self.top1_workpath + 'selected_' + self.nce + '.mgf', 'r') as rf, open(
+                self.top1_workpath + 'selected_' + self.nce + '_forcomet.mgf', 'a+') as w:
             while True:
                 line = rf.readline()
                 if not line:
@@ -112,8 +117,9 @@ class Humanbody_proteome(object):
                 w.write(_line)
 
     #   Merge Protein Sequence Database of Humanbody proteome for Comet
-    def get_fasta(self,workpath=''):
-        with open(workpath + '/crap.fasta','r') as r1,open(workpath + '/uniprot-proteome-UP000005640-20190603.fasta','r')as r2,open(workpath + '/Human.fasta','a+') as w:
+    def get_fasta(self, workpath=''):
+        with open(workpath + '/crap.fasta', 'r') as r1, open(workpath + '/uniprot-proteome-UP000005640-20190603.fasta',
+                                                             'r')as r2, open(workpath + '/Human.fasta', 'a+') as w:
             one_seq = ''
             flag = 0
             for line in r1:
@@ -132,11 +138,12 @@ class Humanbody_proteome(object):
      stage 2 : Scoring with P-score ,then Compare Comet and P-score in ROC plot with random selected .raw and top1
      hits rate with random selected 10000 spectrums
      '''
-     #  Delete the unconventional amino acids from Comet identification results:U
+
+    #  Delete the unconventional amino acids from Comet identification results:U
     def find_unkonwn_aa(self):
         ## random 10000
-        with open(self.top1_workpath+'selected_'+self.nce+'_forcomet.txt','r') as r, open(
-                self.top1_workpath+'_selected_'+self.nce+'_forcomet.txt', 'a+') as w:
+        with open(self.top1_workpath + 'selected_' + self.nce + '_forcomet.txt', 'r') as r, open(
+                self.top1_workpath + '_selected_' + self.nce + '_forcomet.txt', 'a+') as w:
             ## random raw
             # with open('E:/data/1/get_ions/by_ions_PPM/40_fdr/00603_A02_P004608_B00I_A00_R1_HCDFT.txt','r') as r,open('E:/data/1/get_ions/by_ions_PPM/40_fdr/_00603_A02_P004608_B00I_A00_R1_HCDFT.txt','a+') as w:
             r.__next__()
@@ -151,14 +158,13 @@ class Humanbody_proteome(object):
                 else:
                     w.write(line)
 
-
     ###---Basic function---:read identification results and return
     ###   Parameter: have_decoyt:Return results include Decoy;
     ###              have_score:0 means return score, 1 means return evalue;
     ###              have_charge:retrun peptide charge
     ###              filename:identification file
     #   Comet
-    def read_comet_results(self,have_decoy=False, have_score=0, have_charge=False, filename=''):
+    def read_comet_results(self, have_decoy=False, have_score=0, have_charge=False, filename=''):
         with open(filename, 'r') as rf:
             rf.readline()
             rf.__next__()
@@ -221,7 +227,7 @@ class Humanbody_proteome(object):
             return results
 
     #   MSGF+
-    def read_msgf_results(self,have_decoy=False, have_score=0, have_charge=False, filename=''):
+    def read_msgf_results(self, have_decoy=False, have_score=0, have_charge=False, filename=''):
         with open('E:/data/1/get_ions/by_ions_PPM/30_fdr/MSGF/00705_F03_P005217_B0V_A00_R2_HCDFT.tsv', 'r') as rf:
             _results = {}
             CHARGE = {}
@@ -290,7 +296,7 @@ class Humanbody_proteome(object):
             else:
                 return _results
 
-    #---Basic function---:get correct peptide and spectrum
+    # ---Basic function---:get correct peptide and spectrum
     def read_correct_PSM(self, filename=''):
         with open(filename, 'r') as rf:
             mgf_listcontent = []
@@ -329,16 +335,22 @@ class Humanbody_proteome(object):
         return correct_peptide, mgf_listcontent
 
     '''-------------------------------top1 hit rate(random 10000 spectrum)-----------------------------'''
+
     #   Evaluation of comet identification results and generate related files,include Comet top1 missed and unmissed
     def get_different(self):
         total_PSMs = 0
         count = 0
         unmissed_total_PSMs = 0
         unmissed_count = 0
-        with open(self.top1_workpath+'selected_'+self.nce+'_missed_peptide.txt','a+') as mtw, open(self.top1_workpath+'selected_'+self.nce+'_missed_PSMs.mgf',
-                'a+') as mgw, open(self.top1_workpath+'selected_'+self.nce+'_unmissed_PSMs.mgf','a+') as ugw,open(self.top1_workpath+'selected_'+self.nce+'_unmissed_peptide.txt','a+') as utw:
-            comet_results, CHARGE = self.read_comet_results(have_decoy=False, have_charge=True,filename=self.top1_workpath+'selected_30_forcomet.txt')
-            correcte_results, correcte_spectrum = self.read_correct_PSM(filename=self.top1_workpath+'selected_'+self.nce+'.mgf')
+        with open(self.top1_workpath + 'selected_' + self.nce + '_missed_peptide.txt', 'a+') as mtw, open(
+                self.top1_workpath + 'selected_' + self.nce + '_missed_PSMs.mgf',
+                'a+') as mgw, open(self.top1_workpath + 'selected_' + self.nce + '_unmissed_PSMs.mgf',
+                                   'a+') as ugw, open(
+            self.top1_workpath + 'selected_' + self.nce + '_unmissed_peptide.txt', 'a+') as utw:
+            comet_results, CHARGE = self.read_comet_results(have_decoy=False, have_charge=True,
+                                                            filename=self.top1_workpath + 'selected_30_forcomet.txt')
+            correcte_results, correcte_spectrum = self.read_correct_PSM(
+                filename=self.top1_workpath + 'selected_' + self.nce + '.mgf')
             for i in range(len(correcte_results)):
                 correcte_seq = correcte_results[i]
                 if comet_results.get(str(i + 1)) == None:
@@ -384,15 +396,15 @@ class Humanbody_proteome(object):
 
     #   Annotate regular ions(b1+,y1+,b2+,y2+) and generate the files can be scored by P-score
     def get_byions(self):
-        m = MATCH(self.top1_workpath, 'selected_'+self.nce+'_missed_PSMs.mgf')
+        m = MATCH(self.top1_workpath, 'selected_' + self.nce + '_missed_PSMs.mgf')
         m.write_files()
-        um = MATCH(self.top1_workpath, 'selected_'+self.nce+'_unmissed_PSMs.mgf')
+        um = MATCH(self.top1_workpath, 'selected_' + self.nce + '_unmissed_PSMs.mgf')
         um.write_files()
 
     #   Obtaining Probability Matrix by Model
     def get_MatrixP(self):
         file_mode = 'missed'
-        file = 'selected_' +self.nce + '_'+file_mode+'_PSMs_byions.txt'
+        file = 'selected_' + self.nce + '_' + file_mode + '_PSMs_byions.txt'
         ##Model parameters
         BATCH_SIZE = 16
         Label_number = 4
@@ -406,7 +418,7 @@ class Humanbody_proteome(object):
         model.eval()
         if torch.cuda.is_available():
             model.cuda()
-        Data = data(self.top1_workpath, Label_number,run_model='Test',test_file=file)
+        Data = data(self.top1_workpath, Label_number, run_model='Test', test_file=file)
         Test_data, Test_label, Test_length, _, _, _ = Data.GetData(BATCH_SIZE)
         print('Test data number: ' + str(len(Test_length) * BATCH_SIZE))
         with torch.no_grad():
@@ -420,7 +432,8 @@ class Humanbody_proteome(object):
                 t_input_features = torch.tensor(t_data).cuda()
                 t_ions_level = torch.tensor(t_label).cuda()
                 t_batch_length = torch.tensor(t_length).cuda()
-                y_true, y_pred, results, loss, _p = model(t_input_features.permute(0, 2, 1), t_ions_level,t_batch_length)
+                y_true, y_pred, results, loss, _p = model(t_input_features.permute(0, 2, 1), t_ions_level,
+                                                          t_batch_length)
                 Results.extend(results)
                 P.extend(_p[0])
                 Matrix_P.extend(_p[1])
@@ -431,7 +444,7 @@ class Humanbody_proteome(object):
             Cosine = []
             Cosine_0_rate = []
             print('[Score Info]start to write results...')
-            with open( self.top1_workpath+'sorted_by_pccandother/' + file_mode + '_score_pep_P.txt','a+') as fw:
+            with open(self.top1_workpath + 'sorted_by_pccandother/' + file_mode + '_score_pep_P.txt', 'a+') as fw:
                 while start + 2 <= len(Results):
                     _p = P[int(start / 2)]
                     _matrix_p = Matrix_P[int(start / 2)]
@@ -469,10 +482,10 @@ class Humanbody_proteome(object):
         org_index = []
         org_index_bycharge = [[] for i in range(5)]
         with open(
-                                self.workpath+'/30_random10000/pep_credibility/selected_30_' + file_mode + '_peptide.txt',
-                                'r') as mr, open(
-                                self.workpath+'/30_random10000/pep_credibility_4label/sorted_by_pccandother/' + file_mode + '_score_pep_P.txt',
-                                'r') as fr:
+                self.workpath + '/30_random10000/pep_credibility/selected_30_' + file_mode + '_peptide.txt',
+                'r') as mr, open(
+            self.workpath + '/30_random10000/pep_credibility_4label/sorted_by_pccandother/' + file_mode + '_score_pep_P.txt',
+            'r') as fr:
             score = []
             print('[Score Info]start reading score...')
             while True:
@@ -552,10 +565,12 @@ class Humanbody_proteome(object):
                 print('[Score Info]charge ' + str(i + 2) + ' predict: ' + str(predict_diss_charge[i]))
 
     '''---------------------------------FDR ROC plot(random .raw file)---------------------------------'''
+
     #   Get FDR ROC plot Data file of Search engine
     def get_search_fdr(self, split_by_charge=False):
-        score_type = 0      ##0 is xcorr,1 is evalue
-        comet_results, CHARGE = self.read_comet_results(have_decoy=True, have_score=score_type, have_charge=True,filename=self.fdr_workpath+'00705_F03_P005217_B0V_A00_R2_HCDFT.txt')
+        score_type = 0  ##0 is xcorr,1 is evalue
+        comet_results, CHARGE = self.read_comet_results(have_decoy=True, have_score=score_type, have_charge=True,
+                                                        filename=self.fdr_workpath + '00705_F03_P005217_B0V_A00_R2_HCDFT.txt')
         keys = list(comet_results.keys())
         keys = sorted(keys, key=lambda x: int(x))  # if MSGF+
         top_pep_xcorr = []
@@ -567,7 +582,8 @@ class Humanbody_proteome(object):
         score_threshold = []
         ## get Comet FDR by splite charge
         if split_by_charge == True:
-            with open(self.fdr_workpath+'comet_top1_pep_xcorr.txt', 'a+') as w, open(self.fdr_workpath+'comet_FDR_results_xcorr.txt', 'a+') as ww:
+            with open(self.fdr_workpath + 'comet_top1_pep_xcorr.txt', 'a+') as w, open(
+                    self.fdr_workpath + 'comet_FDR_results_xcorr.txt', 'a+') as ww:
                 for i in range(len(top_pep_xcorr)):
                     _line = '\t'.join(top_pep_xcorr[i]) + '\n'
                     w.write(_line)
@@ -591,7 +607,8 @@ class Humanbody_proteome(object):
                         ww.write(_line)
         ## get Comet FDR not splite charge
         elif split_by_charge == False:
-            with open(self.fdr_workpath+'comet_top1_pep_xcorr_allcharge.txt','a+') as w,open(self.fdr_workpath+'comet_FDR_results_xcorr_allcharge.txt','a+') as ww:
+            with open(self.fdr_workpath + 'comet_top1_pep_xcorr_allcharge.txt', 'a+') as w, open(
+                    self.fdr_workpath + 'comet_FDR_results_xcorr_allcharge.txt', 'a+') as ww:
                 for i in range(len(top_pep_xcorr)):
                     _line = '\t'.join(top_pep_xcorr[i]) + '\n'
                     w.write(_line)
@@ -599,28 +616,30 @@ class Humanbody_proteome(object):
                     if _xcorr not in score_threshold:
                         score_threshold.append(float(_xcorr))
                 if score_type == 0:
-                    score_threshold = sorted(score_threshold, reverse=False)     ##Xcorr:False;E-value:True
+                    score_threshold = sorted(score_threshold, reverse=False)  ##Xcorr:False;E-value:True
                 elif score_type == 1:
                     score_threshold = sorted(score_threshold, reverse=True)
                 for t in tqdm(score_threshold):
-                    threshold_pep = list(x for x in top_pep_xcorr if float(x[1])>= t)   ##Xcorr:>;E-value:<
+                    threshold_pep = list(x for x in top_pep_xcorr if float(x[1]) >= t)  ##Xcorr:>;E-value:<
                     f_pep = list(x for x in threshold_pep if x[0].startswith('DECOY-'))
                     decoy = len(f_pep)
-                    target = len(threshold_pep)-decoy
+                    target = len(threshold_pep) - decoy
                     try:
-                        False_Discover_Rate = decoy/target
+                        False_Discover_Rate = decoy / target
                     except:
                         False_Discover_Rate = 0.0
-                    _line = 'Threshold peptide score : ' + str(t) + '\ttarget number : '+ str(target) + '\tFDR : ' + str(False_Discover_Rate) +'\n'
+                    _line = 'Threshold peptide score : ' + str(t) + '\ttarget number : ' + str(
+                        target) + '\tFDR : ' + str(False_Discover_Rate) + '\n'
                     ww.write(_line)
 
     #   generate all PSMs file and Annotate regular ions
     def get_all_psms_and_byions(self):
-        comet_results = self.read_comet_results(have_decoy=True,filename=self.fdr_workpath+'00705_F03_P005217_B0V_A00_R2_HCDFT.txt')
+        comet_results = self.read_comet_results(have_decoy=True,
+                                                filename=self.fdr_workpath + '00705_F03_P005217_B0V_A00_R2_HCDFT.txt')
         _comet_index = list(comet_results.keys())
         _comet_index = sorted(_comet_index, key=lambda x: int(x))  # if MSGF+
         ## get spectrum
-        with open(self.fdr_workpath+'00631_E02_P004778_B00M_A00_R1_CIDFT.mgf', 'r') as rf:
+        with open(self.fdr_workpath + '00631_E02_P004778_B00M_A00_R1_CIDFT.mgf', 'r') as rf:
             _spectrum_content = []
             start = 1
             while True:
@@ -641,7 +660,7 @@ class Humanbody_proteome(object):
                             break
         print('[Score Info]spectrum number : ' + str(len(_spectrum_content)))
         ##product all psms spectrum
-        with open(self.fdr_workpath+'all_psms_spectrums.mgf', 'a+') as w:
+        with open(self.fdr_workpath + 'all_psms_spectrums.mgf', 'a+') as w:
             for _index in tqdm(range(len(_spectrum_content))):
                 _spectrum = _spectrum_content[_index]
                 __index = _comet_index[_index]
@@ -668,7 +687,7 @@ class Humanbody_proteome(object):
 
     #   split Annotated files for P-score,Because it takes up too much memory
     def split_byions(self, each_number=100000):
-        with open(self.fdr_workpath+'all_psms_spectrums_byions.txt', 'r') as r:
+        with open(self.fdr_workpath + 'all_psms_spectrums_byions.txt', 'r') as r:
             count = 0
             while True:
                 line = r.readline()
@@ -681,7 +700,8 @@ class Humanbody_proteome(object):
                     line = r.readline()
                     _line.append(line)
                 _flag = int(count / each_number) + 1
-                with open(self.fdr_workpath+'splited_by_ions/all_psms_spectrums_byions' + str(_flag) + '.txt', 'a+') as w:
+                with open(self.fdr_workpath + 'splited_by_ions/all_psms_spectrums_byions' + str(_flag) + '.txt',
+                          'a+') as w:
                     w.write(''.join(_line))
                 _line = []
                 count += 1
@@ -690,7 +710,7 @@ class Humanbody_proteome(object):
     #   Get FDR ROC plot Data file of P-score
     def get_pscore_fdr(self, split_by_charge=False):
         pep_score = []
-        with open(self.fdr_workpath+self.nce+'_fdr_pep_score_4label_P.txt', 'r') as sr:
+        with open(self.fdr_workpath + self.nce + '_fdr_pep_score_4label_P.txt', 'r') as sr:
             while True:
                 line = sr.readline()
                 if not line.strip():
@@ -723,7 +743,7 @@ class Humanbody_proteome(object):
         print('[Score Info]top1 number : ' + str(len(top_score_pep)))
         ## get score threshold and write top1 txt
         score_threshold = []
-        with open(self.fdr_workpath+'top1_pep_4label_P_changescore_allcharge.txt', 'a+') as aw:
+        with open(self.fdr_workpath + 'top1_pep_4label_P_changescore_allcharge.txt', 'a+') as aw:
             for l in top_score_pep:
                 _score = float(l[4])
                 if _score not in score_threshold:
@@ -736,23 +756,24 @@ class Humanbody_proteome(object):
         print('[Score Info]score threshold number : ' + str(len(score_threshold)))
         ## get FDR split charge
         if split_by_charge == True:
-            with open(self.fdr_workpath+'FDR_results_4label_P_changescore.txt','a+') as fw:
+            with open(self.fdr_workpath + 'FDR_results_4label_P_changescore.txt', 'a+') as fw:
                 for t in tqdm(score_threshold):
-                    threshold_pep = list([x for x in top_score_pep if float(x[4])>=t])
-                    for c in ['2','3','4','5','6']:
+                    threshold_pep = list([x for x in top_score_pep if float(x[4]) >= t])
+                    for c in ['2', '3', '4', '5', '6']:
                         threshold_charge = list([x for x in threshold_pep if x[1] == c])
                         false_pep = list([x for x in threshold_charge if x[0].startswith('DECOY-')])
                         false = len(false_pep)
-                        target = len(threshold_charge)-false
+                        target = len(threshold_charge) - false
                         try:
-                            False_Discover_Rate = false/target
+                            False_Discover_Rate = false / target
                         except:
                             False_Discover_Rate = 0.0
-                        _line = 'Threshold peptide score : ' + str(t) + '\ttarget number : '+ str(target) + '\tFDR : ' + str(False_Discover_Rate) +'\tcharge : ' + str(c)+'\n'
+                        _line = 'Threshold peptide score : ' + str(t) + '\ttarget number : ' + str(
+                            target) + '\tFDR : ' + str(False_Discover_Rate) + '\tcharge : ' + str(c) + '\n'
                         fw.write(_line)
         ## get FDR don't split charge
         elif split_by_charge == False:
-            with open(self.fdr_workpath+'FDR_results_4label_P_changescore_allcharge.txt', 'a+') as fw:
+            with open(self.fdr_workpath + 'FDR_results_4label_P_changescore_allcharge.txt', 'a+') as fw:
                 for t in tqdm(score_threshold):
                     threshold_pep = list([x for x in top_score_pep if float(x[4]) >= t])
                     false_pep = list([x for x in threshold_pep if x[0].startswith('DECOY-')])
@@ -762,12 +783,14 @@ class Humanbody_proteome(object):
                         False_Discover_Rate = false / target
                     except:
                         False_Discover_Rate = 0.0
-                    _line = 'Threshold peptide score : ' + str(t) + '\ttarget number : ' + str(target) + '\tFDR : ' + str(
+                    _line = 'Threshold peptide score : ' + str(t) + '\ttarget number : ' + str(
+                        target) + '\tFDR : ' + str(
                         False_Discover_Rate) + '\n'
                     fw.write(_line)
 
+
 if __name__ == '__main__':
-    human = Humanbody_proteome(workpath='E:/data/1/get_ions/by_ions_PPM',nce='30')
+    human = Humanbody_proteome(workpath='E:/data/1/get_ions/by_ions_PPM', nce='30')
     human.find_unkonwn_aa()
     ##random selected 10000 spectrum for top1 hits rate
     human.get_different()

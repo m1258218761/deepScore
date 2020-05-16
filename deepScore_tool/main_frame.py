@@ -9,7 +9,7 @@ import os
 
 import wx
 
-from function_score import ScoreEngine
+from deepScore_tool.function_score import ScoreEngine
 
 
 class mainFrame(wx.Frame):
@@ -178,10 +178,12 @@ class mainFrame(wx.Frame):
         if not 0.0 < float(fdr) < 100.0:
             wx.MessageBox("输入正确FDR值", "提示消息", wx.OK | wx.YES_DEFAULT)
             return
-        scoreengine = ScoreEngine('./data/%s' % (peptidefile), './data/%s' % (spectrumfile), self.nce, self.software, self.ppm, fdr, self.flformat, self.addstates, self.Status)
+        scoreengine = ScoreEngine('./data/%s' % (peptidefile), './data/%s' % (spectrumfile), self.nce, self.software,
+                                  self.ppm, fdr, self.flformat, self.addstates, self.Status)
         scoreengine.productPSMs()
         allPsms_score = scoreengine.caculateScore()
         scoreengine.caculateFDR(allPsms_score)
+
 
 if __name__ == '__main__':
     app = wx.App()
