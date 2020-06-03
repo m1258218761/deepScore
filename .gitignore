@@ -14,5 +14,5 @@ build
 # My configurations:
 /Model/Data/*.txt
 test*.py
-*.pkl
+#*.pkl
 *_test.py
