@@ -231,13 +231,6 @@ class data(object):
         print('[data processing]label discretization end !')
         return d_label
 
-    def get_level01(self, norm_intensity):
-        i = float(norm_intensity)
-        level = 0
-        if i > 0:
-            level = 1
-        return level
-
     def get_batch(self, data, label, length, batch_size):
         batch_data = []
         batch_label = []
@@ -303,19 +296,6 @@ class data(object):
             start += l[0]
         print('[data processing]data standardization end !')
         return _data
-
-    def storage_data(self, data, label, length, v_data, v_label, v_length, nce, charge):
-        if os.path.exists('./_data_' + str(self.label_number) + '_nce_' + str(nce) + '_charge_' + str(charge)):
-            pass
-        else:
-            os.mkdir('./_data_' + str(self.label_number) + '_nce_' + str(nce) + '_charge_' + str(charge))
-        np.savez('./_data_' + str(self.label_number) + '_nce_' + str(nce) + '_charge_' + str(
-            charge) + '/_data_train' + '_' + str(charge), data=np.array(data), label=np.array(label),
-                 length=np.array(length))
-        np.savez('./_data_' + str(self.label_number) + '_nce_' + str(nce) + '_charge_' + str(
-            charge) + '/_data_validation' + '_' + str(charge), data=np.array(v_data), label=np.array(v_label),
-                 length=np.array(v_length))
-        print('[data processing]have storaged data !')
 
     def read_data(self, train_file):
         with open(self.workpath + '/' + train_file) as r:

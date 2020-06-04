@@ -8,33 +8,42 @@ from tqdm import tqdm
 import torch.optim as optim
 from sklearn.metrics import classification_report
 
+from Model.config_reader import MyParser
 from Model.data_util import data
 from Model.Resnet_model import ResNet18
 from Model.BiLstm_CRF_model import BiLstm_CRF
 
-NCE = '30'  ##NCE = 30 or 35
-run_model = 'Train'  ## run model:Train or Test
-pretrained = False  ##pretrained:True or False
 
-##Model parameters
-BATCH_SIZE = 16  ##batch size
-Label_number = 4  ##label 2:predict b1+,y1+;   label 4:predict b1+,b2+,y1+,y2+
-features_size = 105  ##feature size of every Peptide bond
-
-#   label weight for cross entropy
-weights4 = [0.6550, 0.1455, 0.0718, 0.0385, 0.0236, 0.0158, 0.0113, 0.0084, 0.0063, 0.0047, 0.0190]
+# NCE = '30'  ##NCE = 30 or 35
+# run_model = 'Train'  ## run model:Train or Test
+#
+# ##Model parameters
+# BATCH_SIZE = 16  ##batch size
+# Label_number = 4  ##label 2:predict b1+,y1+;   label 4:predict b1+,b2+,y1+,y2+
+# features_size = 105  ##feature size of every Peptide bond
+#
+# #   label weight for cross entropy
+# weights4 = [0.6550, 0.1455, 0.0718, 0.0385, 0.0236, 0.0158, 0.0113, 0.0084, 0.0063, 0.0047, 0.0190]
 
 
 class Pscore_Model(object):
-    def __init__(self, NCE='30', run_model='Train', pretrained=False, BATCH_SIZE=16, Label_number=4, features_size=105,
-                 weights=[]):
-        self.NCE = NCE
-        self.run_model = run_model
-        self.pretrained = pretrained
-        self.BATCH_SIZE = BATCH_SIZE
-        self.Label_number = Label_number
-        self.features_size = features_size
-        self.weights = weights
+    def __init__(self):
+        conf_path = os.path.dirname(os.path.realpath(__file__)) + "/config.ini"
+        cfg = MyParser()
+        cfg.read(conf_path, encoding='utf-8')
+        parameters = cfg.as_dict()
+        tp = parameters['Model_Train']
+        self.NCE = tp['nce']
+        self.epoch = int(tp['epoch'])
+        self.lr_r = float(tp['r'])
+        self.lr_rate = float(tp['lr_rate'])
+        self.run_model = tp['run_model']
+        self.pretrained = tp['pretrained']
+        self.hold_threshold = int(tp['h_t'])
+        self.BATCH_SIZE = int(tp['batch_size'])
+        self.Label_number = int(tp['label_number'])
+        self.features_size = int(tp['features_size'])
+        self.weights = list(map(float, tp['label_weights'].split(',')))
 
     #   change learning rate
     def get_opt(self, acc, bestacc, count, lr_rate):
@@ -42,10 +51,10 @@ class Pscore_Model(object):
             count = 0
         else:
             count += 1
-        print('count : ' + str(count))
-        if count == 6:
+        print('hold count : ' + str(count))
+        if count == self.hold_threshold:
             count = 0
-            lr_rate = lr_rate * 0.1
+            lr_rate = lr_rate * self.lr_r
             with open('./Log/model_2.txt', 'a+') as r:
                 line = '---------- have update learning rate : ' + str(lr_rate) + ' -----------\n'
                 r.write(line)
@@ -92,8 +101,9 @@ class Pscore_Model(object):
             r.write(line)
 
     def Train(self):
+        print('This is Train')
         count = 0
-        lr_rate = 1e-4
+        lr_rate = self.lr_rate
         bestacc = 0.0
         bestloss = 100.0
         #   Run Training, Resnet+Attention and Bilstm+CRF is all available,just replace the corresponding model.
@@ -101,7 +111,7 @@ class Pscore_Model(object):
         # model = BiLstm_CRF(hidden_dim=1024,features_number=features_size,layer_num=2,batch_size=BATCH_SIZE,label_number=Label_number)
 
         #   pretrain and Transfer Learning
-        if self.pretrained:
+        if self.pretrained == 'True':
             if os.path.exists('./Log/pre_model_2_bestacc_4label.pkl'):
                 pretrained_dict = torch.load('./Log/pre_model_2_bestacc_4label.pkl')
                 model_dict = model.state_dict()
@@ -135,7 +145,7 @@ class Pscore_Model(object):
         if not os.path.exists('./Log'):
             os.mkdir('./Log')
 
-        for epoch in range(200):
+        for epoch in range(self.epoch):
             #   get data
             Train_data, Train_label, Train_length, Test_data, Test_label, Test_length = Data.GetData(self.BATCH_SIZE)
             ep_count = 0
@@ -240,5 +250,5 @@ class Pscore_Model(object):
 
 
 if __name__ == '__main__':
-    model = Pscore_Model(NCE=NCE, run_model='Train', weights=weights4)
+    model = Pscore_Model()
     model.Run()

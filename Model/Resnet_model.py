@@ -8,7 +8,7 @@ from .Attention_layer import MultiHeadedAttention
 
 
 ##############################
-#########  ResNet
+#########  ResNet + Attention
 ##############################
 
 class ResidualBlock(nn.Module):
@@ -20,10 +20,6 @@ class ResidualBlock(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv1d(outchannel, outchannel, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm1d(outchannel),
-
-            # nn.ReLU(inplace=True),
-            # nn.Conv1d(outchannel, outchannel, kernel_size=3, stride=1, padding=1, bias=False),
-            # nn.BatchNorm1d(outchannel)
         )
         self.shortcut = nn.Sequential()
         if stride != 1 or inchannel != outchannel:
@@ -56,10 +52,6 @@ class ResNet(nn.Module):
         self.layer3 = self.make_layer(ResidualBlock, 256, 2, stride=1)
         self.layer4 = self.make_layer(ResidualBlock, 512, 2, stride=1)
         self.layer5 = self.make_layer(ResidualBlock, 1024, 2, stride=1)
-        # self.attn1 = MultiHeadedAttention(2,64)
-        # self.attn2 = MultiHeadedAttention(2,128)
-        # self.attn3 = MultiHeadedAttention(2,256)
-        # self.attn4 = MultiHeadedAttention(2,512)
         self.attn5 = MultiHeadedAttention(8, 1024)
         self.attn_shortcut = nn.Sequential(nn.Conv1d(1024, 1024, kernel_size=1, stride=1, bias=False),
                                            nn.BatchNorm1d(1024))
@@ -77,41 +69,13 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x, y_true, batch_length):
-        # print('input size: ' + str(x.shape))
-        # out = self.conv1(x)
-        # print('after conv1: ' + str(out.shape))
-        # x = self.pe(x.permute(0,2,1)).permute(0,2,1)
         out = self.layer1(x)
-        # out = out.permute(0,2,1)
-        # out,_ = self.attn1(out,out,out)
-        # out = out.permute(0,2,1)
-
-        # print('after layer1: ' + str(out.shape))
         out = self.layer2(out)
-        # out = out.permute(0,2,1)
-        # out,_ = self.attn2(out,out,out)
-        # out = out.permute(0,2,1)
-
-        # print('after layer2: ' + str(out.shape))
         out = self.layer3(out)
-        # out = out.permute(0,2,1)
-        # out,_ = self.attn3(out,out,out)
-        # out = out.permute(0,2,1)
-
-        # print('after layer3: ' + str(out.shape))
         out = self.layer4(out)
-        # out = out.permute(0,2,1)
-        # out,_ = self.attn4(out,out,out)
-        # out = out.permute(0,2,1)
-
-        # print('after layer4: ' + str(out.shape))
         out = self.layer5(out)
         out = out.permute(0, 2, 1)
         out, _attn = self.attn5(out, out, out)
-        # print('after layer5: ' + str(out.shape))
-        # out = F.max_pool2d(out, 4)
-        # print('after max_pool: ' + str(out.shape))
-        # att_shortcut = self.attn_shortcut(out).permute(0,2,1)
         out = self.fc(out)
         total_loss = self.loss(out.view(-1, 11), y_true.view(-1))
         _loss = total_loss / self.batch_size
