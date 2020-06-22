@@ -1,7 +1,7 @@
 # deepScore-α
-![](https://img.shields.io/badge/language-python-blue.svg)
-![](https://img.shields.io/badge/frame-pytorch-orange.svg)
-![](https://img.shields.io/badge/license-MIT-000000.svg)
+<img src="https://img.shields.io/badge/language-python-blue.svg"/>
+<img src="https://img.shields.io/badge/frame-pytorch-orange.svg"/>
+<img src="https://img.shields.io/badge/license-MIT-000000.svg"/>
 
 A Peptide Spectrum Match Scoring Algorithm based on Deep Learning Model.
 This algorithm extracts candidate peptide sequences from Comet and MSGF+ for re-scoring and comparison with the original results: 
@@ -11,10 +11,10 @@ This algorithm extracts candidate peptide sequences from Comet and MSGF+ for re-
 ### Prerequisites
 + python 3.6+
 + pytorch 1.0+
-### Deep Learning Model Structure
+### Structure diagram of deep learning model adopted by deepScore-α
 > deepScore-α's model is One-dimensional [Resnet](https://arxiv.org/abs/1512.03385) and combines [Multi-Head self-Attention](https://arxiv.org/abs/1706.03762).
 <img src="img/model structure.png" width="35%" high="35%"></img>
-### deepScore-α Process Flow
+### The framework of the deepScore-α algorithm
 > Model training is needed before scoring with deepScore-α,and the output of the model is different at different stages.
 ><img src="img/process flow.png" width="50%" high="50%"></img>
 
