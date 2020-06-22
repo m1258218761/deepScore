@@ -1,7 +1,5 @@
 # deepScore-α
-<img src="https://img.shields.io/badge/language-python-blue.svg"/>
-<img src="https://img.shields.io/badge/frame-pytorch-orange.svg"/>
-<img src="https://img.shields.io/badge/license-MIT-000000.svg"/>
+![](https://img.shields.io/badge/language-python-blue.svg) ![](https://img.shields.io/badge/frame-pytorch-orange.svg) ![](https://img.shields.io/badge/license-MIT-000000.svg)
 
 A Peptide Spectrum Match Scoring Algorithm based on Deep Learning Model.
 This algorithm extracts candidate peptide sequences from Comet and MSGF+ for re-scoring and comparison with the original results: 
